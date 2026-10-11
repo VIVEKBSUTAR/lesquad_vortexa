@@ -85,59 +85,48 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Suppress GSAP null target warnings during fast React component mounts/re-renders
+    gsap.config({ nullTargetWarn: false });
+
     const timer = setTimeout(() => {
       ScrollTrigger.refresh();
     }, 150);
 
     const ctx = gsap.context(() => {
-      // 1. Hero Entrance Timeline
-      const heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-      heroTl
-        .from('.hero-badge', { opacity: 0, y: -25, duration: 0.6 })
-        .from('.hero-heading', { opacity: 0, y: 35, duration: 0.8 }, '-=0.3')
-        .from('.hero-desc', { opacity: 0, y: 20, duration: 0.7 }, '-=0.4')
-        .from('.hero-actions', { opacity: 0, y: 20, duration: 0.6 }, '-=0.4')
-        .from('.hero-kpis', { opacity: 0, y: 30, duration: 0.8, stagger: 0.1 }, '-=0.3')
-        .from('.hero-preview-card', { opacity: 0, scale: 0.96, duration: 0.9 }, '-=0.6');
+      // 1. Hero Entrance Timeline (guarded by element presence)
+      if (containerRef.current?.querySelector('.hero-badge')) {
+        const heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        heroTl
+          .from('.hero-badge', { opacity: 0, y: -25, duration: 0.6 })
+          .from('.hero-heading', { opacity: 0, y: 35, duration: 0.8 }, '-=0.3')
+          .from('.hero-desc', { opacity: 0, y: 20, duration: 0.7 }, '-=0.4')
+          .from('.hero-actions', { opacity: 0, y: 20, duration: 0.6 }, '-=0.4')
+          .from('.hero-kpis', { opacity: 0, y: 30, duration: 0.8, stagger: 0.1 }, '-=0.3')
+          .from('.hero-preview-card', { opacity: 0, scale: 0.96, duration: 0.9 }, '-=0.6');
+      }
 
-      // 2. Feature Pinned Sections Entrance
+      // 2. Feature Pinned Sections Entrance (only animate sections that contain anim items)
       gsap.utils.toArray<HTMLElement>('.feature-pinned-section').forEach((section) => {
-        gsap.fromTo(
-          section.querySelectorAll('.feature-anim-item'),
-          { opacity: 0, y: 35 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.75,
-            stagger: 0.12,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: section,
-              start: 'top 80%',
-              toggleActions: 'play none none reverse',
-            },
-          }
-        );
-      });
-
-      // 3. Staggered ROI Cards
-      gsap.fromTo(
-        '.roi-card',
-        { opacity: 0, y: 40, scale: 0.96 },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.7,
-          stagger: 0.15,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.roi-section',
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
+        const animItems = section.querySelectorAll('.feature-anim-item');
+        if (animItems && animItems.length > 0) {
+          gsap.fromTo(
+            animItems,
+            { opacity: 0, y: 35 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.75,
+              stagger: 0.12,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: section,
+                start: 'top 80%',
+                toggleActions: 'play none none reverse',
+              },
+            }
+          );
         }
-      );
+      });
     }, containerRef);
 
     return () => {
