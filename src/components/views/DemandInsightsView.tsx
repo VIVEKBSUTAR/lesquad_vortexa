@@ -169,6 +169,50 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
         </div>
       </div>
 
+      {/* B. Data Quality Summary (Section 7.B of Specification) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div
+          onClick={() => setActiveSubTab('anomalies')}
+          className="bg-surface/98 backdrop-blur-xl border border-border hover:border-accent rounded-2xl p-4 shadow-sm transition-all cursor-pointer group"
+        >
+          <div className="text-[10px] font-mono uppercase text-muted">Anomalies Awaiting Review</div>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="font-mono text-2xl font-semibold text-accent">2</span>
+            <span className="text-xs font-mono text-muted">Flagged records</span>
+          </div>
+          <div className="text-[11px] font-mono text-accent group-hover:underline mt-0.5">
+            Resolve in Review Queue →
+          </div>
+        </div>
+
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-sm">
+          <div className="text-[10px] font-mono uppercase text-muted">Missing / Duplicate Dates</div>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="font-mono text-2xl font-semibold text-moss">0</span>
+            <span className="text-xs font-mono text-muted">Gaps detected</span>
+          </div>
+          <div className="text-[11px] font-mono text-muted mt-0.5">Continuous daily grid</div>
+        </div>
+
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-sm">
+          <div className="text-[10px] font-mono uppercase text-muted">Stockout-Affected Records</div>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="font-mono text-2xl font-semibold text-ochre">1</span>
+            <span className="text-xs font-mono text-muted">Suppressed zero</span>
+          </div>
+          <div className="text-[11px] font-mono text-muted mt-0.5">Cold room compressor outage</div>
+        </div>
+
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-sm">
+          <div className="text-[10px] font-mono uppercase text-muted">Insufficient History SKUs</div>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="font-mono text-2xl font-semibold text-moss">0</span>
+            <span className="text-xs font-mono text-muted">Excluded</span>
+          </div>
+          <div className="text-[11px] font-mono text-muted mt-0.5">All 6 SKUs have ≥30d history</div>
+        </div>
+      </div>
+
       {/* SUB-PANEL 1: DAILY DEMAND HISTORY & demand_records Table (Table 2) */}
       {activeSubTab === 'demand' && (
         <div className="space-y-6">

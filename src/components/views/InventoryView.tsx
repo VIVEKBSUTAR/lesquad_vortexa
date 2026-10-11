@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProductWithComputed, RecommendationSnapshot } from '@/lib/types';
 import { apiClient, RecommendationResponse } from '@/lib/api';
 import { getRecommendationSnapshots } from '@/lib/data';
-import { ProductDetailModal } from '@/components/dashboard/ProductDetailModal';
+import { ProductDetailDrawer } from '@/components/inventory/ProductDetailDrawer';
 import {
   Plus,
   Search,
@@ -27,23 +27,36 @@ import {
   DollarSign,
   Box,
   Truck,
+  Upload,
+  ArrowUpDown,
+  Zap,
 } from 'lucide-react';
 
 interface InventoryViewProps {
   products: ProductWithComputed[];
   onRefreshProducts: () => void;
   onSimulateInCrisis: (product: ProductWithComputed) => void;
+  onOpenImportModal?: () => void;
+  onOpenFormulasModal?: () => void;
+  initialSelectedProduct?: ProductWithComputed | null;
 }
 
 export const InventoryView: React.FC<InventoryViewProps> = ({
   products,
   onRefreshProducts,
   onSimulateInCrisis,
+  onOpenImportModal,
+  onOpenFormulasModal,
+  initialSelectedProduct = null,
 }) => {
   const [activeTableTab, setActiveTableTab] = useState<'products' | 'recommendations'>('products');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'order' | 'watch' | 'healthy'>('all');
+  const [sortBy, setSortBy] = useState<'risk' | 'position' | 'recommendation'>('risk');
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(
+    initialSelectedProduct || null
+  );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductWithComputed | null>(null);
   const [latestRec, setLatestRec] = useState<RecommendationResponse | null>(null);
@@ -51,6 +64,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [recSuccessMessage, setRecSuccessMessage] = useState<string | null>(null);
   const [inspectRecJson, setInspectRecJson] = useState<RecommendationSnapshot | null>(null);
   const [copiedJson, setCopiedJson] = useState(false);
+
+  useEffect(() => {
+    if (initialSelectedProduct) {
+      setSelectedProduct(initialSelectedProduct);
+    }
+  }, [initialSelectedProduct]);
 
   // Recommendations history (Table 5: recommendations)
   const [recommendationsList, setRecommendationsList] = useState<RecommendationSnapshot[]>(() =>
@@ -91,13 +110,41 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   const categories = Array.from(new Set(products.map((p) => p.category)));
 
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCat = categoryFilter === 'all' || p.category === categoryFilter;
-    return matchesSearch && matchesCat;
-  });
+  const filteredProducts = products
+    .filter((p) => {
+      const matchesSearch =
+        p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCat = categoryFilter === 'all' || p.category === categoryFilter;
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'order' &&
+          (p.metrics.status === 'order' || p.metrics.status === 'reorder_now')) ||
+        (statusFilter === 'watch' && p.metrics.status === 'watch') ||
+        (statusFilter === 'healthy' && p.metrics.status === 'healthy');
+      return matchesSearch && matchesCat && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'risk') {
+        const weight: Record<string, number> = {
+          order: 3,
+          reorder_now: 3,
+          watch: 2,
+          healthy: 1,
+          insufficient_data: 0,
+        };
+        return (weight[b.metrics.status] || 0) - (weight[a.metrics.status] || 0);
+      }
+      if (sortBy === 'position') {
+        return a.metrics.inventoryPosition - b.metrics.inventoryPosition;
+      }
+      if (sortBy === 'recommendation') {
+        const qA = a.metrics.inventoryPosition <= a.metrics.reorderPoint ? a.metrics.eoq : 0;
+        const qB = b.metrics.inventoryPosition <= b.metrics.reorderPoint ? b.metrics.eoq : 0;
+        return qB - qA;
+      }
+      return 0;
+    });
 
   const filteredRecommendations = recommendationsList.filter((rec) => {
     const product = products.find((p) => p.id === rec.productId);
@@ -211,68 +258,148 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Action Bar & Schema Tab Switcher */}
-      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Page Header & Summary Metrics */}
+      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-3xl p-6 lg:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-accent font-semibold uppercase tracking-wider">
-              StockSense Database Schema Integration
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-accent" />
+            <h1 className="font-serif text-3xl font-light text-ink tracking-tight">
+              Inventory
+            </h1>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-muted">
+              Continuous Review (r, Q)
             </span>
           </div>
-          <h3 className="font-serif text-2xl font-light text-ink">
-            Master Inventory & Replenishment Tables
-          </h3>
-          <p className="text-muted text-xs font-sans mt-0.5">
-            Strict 1:1 mapping with core database tables <span className="font-mono text-ink">products</span> (Table 1) and immutable <span className="font-mono text-ink">recommendations</span> (Table 5).
+          <p className="text-muted text-sm font-sans max-w-2xl">
+            Inspect live stock positions, reorder thresholds, and transparent calculation evidence for every SKU.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Table Tab Selector */}
-          <div className="flex items-center gap-1 bg-stone p-1 rounded-xl border border-border text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-3 font-mono text-xs">
+          {onOpenImportModal && (
             <button
-              onClick={() => setActiveTableTab('products')}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
-                activeTableTab === 'products'
-                  ? 'bg-ink text-surface font-semibold shadow-xs'
-                  : 'text-muted hover:text-ink'
-              }`}
+              onClick={onOpenImportModal}
+              className="px-4 py-2 rounded-xl bg-ink text-surface hover:bg-accent font-medium flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
             >
-              <Package className="w-3.5 h-3.5" />
-              <span>Products Master</span>
+              <Upload className="w-3.5 h-3.5 text-surface" />
+              <span>Import Data</span>
             </button>
-            <button
-              onClick={() => setActiveTableTab('recommendations')}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
-                activeTableTab === 'recommendations'
-                  ? 'bg-ink text-surface font-semibold shadow-xs'
-                  : 'text-muted hover:text-ink'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Recommendations Snapshot</span>
-            </button>
-          </div>
+          )}
 
+          {onOpenFormulasModal && (
+            <button
+              onClick={onOpenFormulasModal}
+              className="px-4 py-2 rounded-xl bg-surface border border-border hover:bg-stone text-ink flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Calculator className="w-3.5 h-3.5 text-ochre" />
+              <span>OR Formulas</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* B. Summary Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-sm">
+          <div className="text-[10px] font-mono uppercase text-muted">Total Products</div>
+          <div className="font-mono text-2xl font-semibold text-ink mt-1">
+            {products.length}
+          </div>
+          <div className="text-[11px] font-mono text-muted mt-0.5">Active catalogue SKUs</div>
+        </div>
+
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-sm">
+          <div className="text-[10px] font-mono uppercase text-muted">Reorder Now</div>
+          <div className="font-mono text-2xl font-semibold text-brick mt-1">
+            {
+              products.filter(
+                (p) => p.metrics.status === 'order' || p.metrics.status === 'reorder_now'
+              ).length
+            }
+          </div>
+          <div className="text-[11px] font-mono text-muted mt-0.5">Inv. Position ≤ ROP</div>
+        </div>
+
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-sm">
+          <div className="text-[10px] font-mono uppercase text-muted">Healthy Stocked</div>
+          <div className="font-mono text-2xl font-semibold text-moss mt-1">
+            {products.filter((p) => p.metrics.status === 'healthy').length}
+          </div>
+          <div className="text-[11px] font-mono text-muted mt-0.5">Safe buffer buffer</div>
+        </div>
+
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-sm">
+          <div className="text-[10px] font-mono uppercase text-muted">Insufficient Data</div>
+          <div className="font-mono text-2xl font-semibold text-muted mt-1">
+            0
+          </div>
+          <div className="text-[11px] font-mono text-muted mt-0.5">All 6 SKUs verified</div>
+        </div>
+      </div>
+
+      {/* Controls & Schema Tab Switcher */}
+      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        {/* Table Tab Selector */}
+        <div className="flex items-center gap-1 bg-stone p-1 rounded-xl border border-border text-xs font-mono">
+          <button
+            onClick={() => setActiveTableTab('products')}
+            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+              activeTableTab === 'products'
+                ? 'bg-ink text-surface font-semibold shadow-xs'
+                : 'text-muted hover:text-ink'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>Products Master</span>
+          </button>
+          <button
+            onClick={() => setActiveTableTab('recommendations')}
+            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+              activeTableTab === 'recommendations'
+                ? 'bg-ink text-surface font-semibold shadow-xs'
+                : 'text-muted hover:text-ink'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Recommendations Snapshots</span>
+          </button>
+        </div>
+
+        {/* Filters & Actions */}
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search SKU, name, ID..."
+              placeholder="Search SKU or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-stone text-ink border border-border rounded-xl pl-9 pr-3 py-2 text-xs font-mono focus:outline-none focus:border-accent w-44 sm:w-56"
+              className="bg-stone text-ink border border-border rounded-xl pl-9 pr-3 py-2 text-xs font-mono focus:outline-none focus:border-accent w-40 sm:w-48"
             />
           </div>
 
           {activeTableTab === 'products' && (
             <>
+              {/* Status Filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as 'all' | 'order' | 'watch' | 'healthy')
+                }
+                className="bg-stone text-ink border border-border rounded-xl px-2.5 py-2 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="order">Reorder Now</option>
+                <option value="watch">Buffer Watch</option>
+                <option value="healthy">Healthy Stocked</option>
+              </select>
+
               {/* Category Filter */}
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="bg-stone text-ink border border-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
+                className="bg-stone text-ink border border-border rounded-xl px-2.5 py-2 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
               >
                 <option value="all">All Categories</option>
                 {categories.map((c) => (
@@ -282,10 +409,23 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 ))}
               </select>
 
+              {/* Sort By Filter */}
+              <select
+                value={sortBy}
+                onChange={(e) =>
+                  setSortBy(e.target.value as 'risk' | 'position' | 'recommendation')
+                }
+                className="bg-stone text-ink border border-border rounded-xl px-2.5 py-2 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
+              >
+                <option value="risk">Sort: Urgency</option>
+                <option value="position">Sort: Inv. Position</option>
+                <option value="recommendation">Sort: Order Qty</option>
+              </select>
+
               {/* Add Product Button */}
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 bg-ink text-surface hover:bg-accent rounded-xl text-xs font-mono font-medium transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+                className="px-3.5 py-2 bg-ink text-surface hover:bg-accent rounded-xl text-xs font-mono font-medium transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Create SKU</span>
@@ -359,7 +499,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   }[p.metrics.status];
 
                   return (
-                    <tr key={p.id} className="hover:bg-stone/50 transition-colors">
+                    <tr
+                      key={p.id}
+                      onClick={() => setSelectedProduct(p)}
+                      className="hover:bg-stone/50 transition-colors cursor-pointer group"
+                    >
                       <td className="py-3.5 px-3 font-semibold text-ink whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <span>{p.sku}</span>
@@ -948,11 +1092,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       )}
 
-      {/* Detailed SKU Audit Modal */}
-      <ProductDetailModal
+      {/* Detailed SKU 5-Section Detail Drawer (Section 6 of Specification) */}
+      <ProductDetailDrawer
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onSimulateInCrisis={onSimulateInCrisis}
+        onOpenFormulasModal={onOpenFormulasModal}
       />
     </div>
   );

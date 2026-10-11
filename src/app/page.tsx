@@ -4,21 +4,29 @@ import React, { useState, useEffect } from 'react';
 import { ProductWithComputed } from '@/lib/types';
 import { apiClient } from '@/lib/api';
 import { calculateZScore, computeProductMetrics } from '@/lib/math';
-import { Header, ActiveNavTab } from '@/components/navigation/Header';
+import { TopBar } from '@/components/navigation/TopBar';
+import { Sidebar } from '@/components/navigation/Sidebar';
+import { ActiveNavTab } from '@/components/navigation/Header';
 import { ProductShowcase } from '@/components/product/ProductShowcase';
 import { OverviewView } from '@/components/views/OverviewView';
 import { InventoryView } from '@/components/views/InventoryView';
 import { DemandInsightsView } from '@/components/views/DemandInsightsView';
 import { ScenarioLabView } from '@/components/views/ScenarioLabView';
+import { ImportWizardModal } from '@/components/modals/ImportWizardModal';
 import { FormulasAssumptionsModal } from '@/components/modals/FormulasAssumptionsModal';
 
 export default function Home() {
   const [products, setProducts] = useState<ProductWithComputed[]>([]);
-  const [activeTab, setActiveTab] = useState<ActiveNavTab>('product');
+  const [activeTab, setActiveTab] = useState<ActiveNavTab>('overview');
   const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(null);
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [serviceLevel, setServiceLevel] = useState(0.95);
   const [isFormulasModalOpen, setIsFormulasModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState('DarkStore Fleet Alpha');
+  const [dataStatus, setDataStatus] = useState<
+    'not_imported' | 'imported' | 'analysis_ready' | 'needs_review'
+  >('analysis_ready');
 
   const zScore = calculateZScore(serviceLevel);
 
@@ -42,7 +50,13 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam === 'overview' || tabParam === 'inventory' || tabParam === 'demand' || tabParam === 'scenario') {
+      if (
+        tabParam === 'overview' ||
+        tabParam === 'inventory' ||
+        tabParam === 'demand' ||
+        tabParam === 'scenario' ||
+        tabParam === 'product'
+      ) {
         setActiveTab(tabParam as ActiveNavTab);
       }
     }
@@ -63,6 +77,19 @@ export default function Home() {
   const handleSimulateInCrisis = (p: ProductWithComputed) => {
     setSelectedProduct(p);
     setActiveTab('scenario');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSelectProductFromOverview = (p: ProductWithComputed) => {
+    setSelectedProduct(p);
+    setActiveTab('inventory');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleImportComplete = (importedDatasetName: string) => {
+    setWorkspaceName(importedDatasetName || 'DarkStore Fleet Alpha');
+    setDataStatus('analysis_ready');
+    setActiveTab('overview');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -88,9 +115,10 @@ export default function Home() {
       {/* Subtle filmic grain overlay */}
       <div className="grain-overlay" />
 
-      {/* Main Product Application Layer */}
-      <div className="relative z-20">
-        <Header
+      {/* Main Persistent Application Shell */}
+      <div className="relative z-20 flex flex-col min-h-screen">
+        {/* Top Bar */}
+        <TopBar
           activeTab={activeTab}
           onSelectTab={(tab) => {
             setActiveTab(tab);
@@ -98,59 +126,87 @@ export default function Home() {
           }}
           serviceLevel={serviceLevel}
           onSelectServiceLevel={handleSelectServiceLevel}
+          onOpenImportModal={() => setIsImportModalOpen(true)}
           onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
-          isConnectedToLiveBackend={isLiveBackend}
+          workspaceName={workspaceName}
+          dataStatus={dataStatus}
+          isLiveBackend={isLiveBackend}
         />
 
-        <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {activeTab === 'product' && (
-            <ProductShowcase
-              products={products}
-              serviceLevel={serviceLevel}
-              zScore={zScore}
-              onNavigateToTab={(tab) => {
-                setActiveTab(tab);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onSimulateInCrisis={handleSimulateInCrisis}
-              onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
-            />
-          )}
+        {/* Sidebar + Main Content Layout */}
+        <div className="flex flex-1">
+          {/* Left Persistent Sidebar */}
+          <Sidebar
+            activeTab={activeTab}
+            onSelectTab={(tab) => {
+              setActiveTab(tab);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+            workspaceName={workspaceName}
+            dataStatus={dataStatus}
+          />
 
-          {activeTab === 'overview' && (
-            <OverviewView
-              products={products}
-              serviceLevel={serviceLevel}
-              zScore={zScore}
-              onNavigateToTab={(tab) => setActiveTab(tab)}
-              onSimulateInCrisis={handleSimulateInCrisis}
-              onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
-            />
-          )}
+          {/* Main Area */}
+          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            {activeTab === 'product' && (
+              <ProductShowcase
+                products={products}
+                serviceLevel={serviceLevel}
+                zScore={zScore}
+                onNavigateToTab={(tab) => {
+                  setActiveTab(tab);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onSimulateInCrisis={handleSimulateInCrisis}
+                onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+              />
+            )}
 
-          {activeTab === 'inventory' && (
-            <InventoryView
-              products={products}
-              onRefreshProducts={refreshProducts}
-              onSimulateInCrisis={handleSimulateInCrisis}
-            />
-          )}
+            {activeTab === 'overview' && (
+              <OverviewView
+                products={products}
+                serviceLevel={serviceLevel}
+                zScore={zScore}
+                onNavigateToTab={(tab) => setActiveTab(tab)}
+                onSelectProduct={handleSelectProductFromOverview}
+                onOpenImportModal={() => setIsImportModalOpen(true)}
+                onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+              />
+            )}
 
-          {activeTab === 'demand' && (
-            <DemandInsightsView
-              products={products}
-            />
-          )}
+            {activeTab === 'inventory' && (
+              <InventoryView
+                products={products}
+                onRefreshProducts={refreshProducts}
+                onSimulateInCrisis={handleSimulateInCrisis}
+                onOpenImportModal={() => setIsImportModalOpen(true)}
+                onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+                initialSelectedProduct={selectedProduct}
+              />
+            )}
 
-          {activeTab === 'scenario' && (
-            <ScenarioLabView
-              products={products}
-              selectedProduct={selectedProduct || products[0]}
-              onSelectProduct={setSelectedProduct}
-            />
-          )}
-        </main>
+            {activeTab === 'demand' && (
+              <DemandInsightsView products={products} />
+            )}
+
+            {activeTab === 'scenario' && (
+              <ScenarioLabView
+                products={products}
+                selectedProduct={selectedProduct || products[0]}
+                onSelectProduct={setSelectedProduct}
+              />
+            )}
+          </main>
+        </div>
       </div>
+
+      {/* Guided 5-Step CSV Import Workflow Modal */}
+      <ImportWizardModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={handleImportComplete}
+      />
 
       {/* Operational Formulas & Assumptions Modal */}
       <FormulasAssumptionsModal
