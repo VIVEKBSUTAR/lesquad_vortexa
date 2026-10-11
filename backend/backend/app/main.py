@@ -77,10 +77,20 @@ def create_app(custom_settings: Settings | None = None) -> FastAPI:
     # CORS configuration
     if active_settings.CORS_ORIGINS:
         has_wildcard = "*" in active_settings.CORS_ORIGINS
+        cors_origins = (
+            list(active_settings.CORS_ORIGINS)
+            if isinstance(active_settings.CORS_ORIGINS, list)
+            else [active_settings.CORS_ORIGINS]
+        )
+        if "https://stocksense-self.vercel.app" not in cors_origins and not has_wildcard:
+            cors_origins.append("https://stocksense-self.vercel.app")
+
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=active_settings.CORS_ORIGINS,
+            allow_origins=cors_origins,
+            allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
             allow_credentials=not has_wildcard,
+            allow_private_network=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )

@@ -12,8 +12,19 @@ import {
 import { getProductsWithComputed, runCrisisSimulation } from './data';
 import { computeProductMetrics } from './math';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api/v1';
+function getEffectiveBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('stocksense_api_base_url');
+    if (saved && saved.trim()) {
+      return saved.trim().replace(/\/+$/, '');
+    }
+  }
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'
+  ).replace(/\/+$/, '');
+}
+
+const API_BASE_URL = getEffectiveBaseUrl();
 
 export interface HealthResponse {
   status: string;
@@ -229,7 +240,28 @@ class StockSenseApiClient {
   private idToBackendIdMap: Map<string, number> = new Map();
 
   constructor() {
-    this.baseUrl = API_BASE_URL;
+    this.baseUrl = getEffectiveBaseUrl();
+  }
+
+  public getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  public setBaseUrl(newUrl: string): void {
+    const clean = newUrl.trim().replace(/\/+$/, '');
+    this.baseUrl = clean;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('stocksense_api_base_url', clean);
+    }
+  }
+
+  public resetBaseUrl(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('stocksense_api_base_url');
+    }
+    this.baseUrl = (
+      process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'
+    ).replace(/\/+$/, '');
   }
 
   /**

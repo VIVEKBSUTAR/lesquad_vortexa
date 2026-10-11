@@ -32,7 +32,11 @@ class Settings(BaseSettings):
     SECRET_KEY: SecretStr = SecretStr("dev_insecure_secret_key_change_in_production_min32chars")
 
     # CORS
-    CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: Union[List[str], str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://stocksense-self.vercel.app",
+    ]
 
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -54,10 +58,13 @@ class Settings(BaseSettings):
             v = v.strip()
             if v.startswith("[") and v.endswith("]"):
                 try:
-                    return json.loads(v)
+                    origins = json.loads(v)
+                    return [str(o).strip().rstrip("/") for o in origins if str(o).strip()]
                 except json.JSONDecodeError:
                     pass
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
+            return [origin.strip().rstrip("/") for origin in v.split(",") if origin.strip()]
+        if isinstance(v, list):
+            return [str(o).strip().rstrip("/") for o in v if str(o).strip()]
         return v
 
     @field_validator("LOG_LEVEL")

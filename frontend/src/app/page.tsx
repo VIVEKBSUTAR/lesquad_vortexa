@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ProductWithComputed } from '@/lib/types';
 import { apiClient } from '@/lib/api';
+import { getProductsWithComputed } from '@/lib/data';
 import { calculateZScore, computeProductMetrics } from '@/lib/math';
 import { TopBar } from '@/components/navigation/TopBar';
 import { Sidebar } from '@/components/navigation/Sidebar';
@@ -16,10 +17,19 @@ import { ImportWizardModal } from '@/components/modals/ImportWizardModal';
 import { FormulasAssumptionsModal } from '@/components/modals/FormulasAssumptionsModal';
 
 export default function Home() {
-  const [products, setProducts] = useState<ProductWithComputed[]>([]);
+  const initialProducts = useMemo(() => {
+    return getProductsWithComputed().map((p) => ({
+      ...p,
+      metrics: computeProductMetrics(p, 0.95),
+    }));
+  }, []);
+
+  const [products, setProducts] = useState<ProductWithComputed[]>(initialProducts);
   // Default to the full-width animated landing showcase tour upon first visit
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('product');
-  const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(
+    initialProducts[0] || null
+  );
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [serviceLevel, setServiceLevel] = useState(0.95);
   const [isFormulasModalOpen, setIsFormulasModalOpen] = useState(false);
@@ -143,6 +153,7 @@ export default function Home() {
           workspaceName={workspaceName}
           dataStatus={dataStatus}
           isLiveBackend={isLiveBackend}
+          onEndpointChange={refreshProducts}
         />
 
         {/* Conditional Layout: Full-width Landing Tour vs Persistent Dashboard Shell */}
