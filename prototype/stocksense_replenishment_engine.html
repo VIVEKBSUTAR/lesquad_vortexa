@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockSense | Inventory decisions you can check</title>
+    
+    <!-- Theme & Colors -->
+    <script>
+        const StockSenseTheme = {
+            stone: '#F3F1ED',      // Background
+            stoneDark: '#E8E5DF',  // Alternate background
+            surface: '#FAF9F7',    // Cards / UI
+            ink: '#1C1B19',        // Primary text
+            muted: '#6D6A64',      // Secondary text
+            border: '#DAD6CE',     // Borders
+            accent: '#0F5C5C',     // Deep Teal
+            
+            // Status Colors (Strictly for status)
+            moss: '#4F7A4A',       // Healthy
+            ochre: '#B7791F',      // Watch
+            brick: '#B23A2E',      // Order
+            slate: '#3F6C8F',      // Forecast
+            anomaly: '#7A5A8C'     // Plum (Anomaly)
+        };
+
+        const cssVars = Object.entries(StockSenseTheme)
+            .map(([k, v]) => `--color-${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}: ${v};`)
+            .join(' ');
+        document.write(`<style>:root { ${cssVars} }</style>`);
+
+        const getHex = (key) => parseInt(StockSenseTheme[key].replace('#', '0x'), 16);
+    </script>
+
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'], serif: ['Fraunces', 'serif'] },
+                    colors: {
+                        stone: 'var(--color-stone)', stoneDark: 'var(--color-stone-dark)', surface: 'var(--color-surface)',
+                        ink: 'var(--color-ink)', muted: 'var(--color-muted)', border: 'var(--color-border)', accent: 'var(--color-accent)',
+                        moss: 'var(--color-moss)', ochre: 'var(--color-ochre)', brick: 'var(--color-brick)', slate: 'var(--color-slate)',
+                        anomaly: 'var(--color-anomaly)'
+                    },
+                    boxShadow: { 'premium': '0 4px 24px rgba(28, 27, 25, 0.04), 0 1px 2px rgba(28, 27, 25, 0.02)' }
+                }
+            }
+        }
+    </script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        body { background-color: var(--color-stone); color: var(--color-ink); margin: 0; padding: 0; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        
+        /* Fixed Global 3D Canvas */
+        #global-canvas-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; transition: filter 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .app-active #global-canvas-container { filter: blur(12px) brightness(0.9); }
+
+        #grain-layer { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999; opacity: 0.04; background-image: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="n"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)"/%3E%3C/svg%3E'); }
+
+        .magnetic { display: inline-block; transition: transform 0.1s; }
+
+        /* Intro Overlay Controls */
+        #intro-controls { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 5000; pointer-events: none; }
+        .skip-btn { position: absolute; bottom: 32px; right: 32px; z-index: 10000; background: var(--color-surface); color: var(--color-ink); border: 1px solid var(--color-border); padding: 10px 24px; font-size: 0.75rem; border-radius: 99px; font-weight: 500; pointer-events: auto; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: all 0.3s; }
+        .skip-btn:hover { background: var(--color-ink); color: var(--color-surface); }
+        #fade-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: var(--color-stone); opacity: 0; pointer-events: none; z-index: 10; }
+
+        /* Shell */
+        #main-shell { opacity: 0; visibility: hidden; margin: 0 auto; position: relative; z-index: 20; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 24px 48px; border-bottom: 1px solid rgba(218, 214, 206, 0.5); position: sticky; top: 0; background: rgba(243, 241, 237, 0.8); backdrop-filter: blur(12px); z-index: 500; }
+
+        /* Story */
+        .story-layout { display: flex; position: relative; }
+        .story-sidebar { width: 280px; position: sticky; top: 80px; height: calc(100vh - 80px); padding: 48px; display: flex; flex-direction: column; z-index: 100; font-family: 'Inter', sans-serif; mix-blend-mode: multiply; pointer-events: none; }
+        .progress-item { opacity: 0.3; transition: all 0.5s ease; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .progress-item.active { opacity: 1; transform: translateX(8px); color: var(--color-accent); }
+        .progress-line { width: 16px; height: 1px; background: currentColor; transition: width 0.5s; }
+        .progress-item.active .progress-line { width: 32px; }
+
+        .story-content { flex: 1; position: relative; z-index: 10; }
+        .chapter { min-height: 120vh; display: flex; flex-direction: column; justify-content: center; padding: 120px 48px 120px 120px; border-bottom: 1px solid var(--color-border); }
+        .ch-stone { background: rgba(243, 241, 237, 0.7); }
+        .ch-stoneDark { background: rgba(232, 229, 223, 0.7); }
+        .ch-ink { background: rgba(28, 27, 25, 0.95); color: var(--color-stone); border-bottom: none; }
+        
+        .card { background-color: var(--color-surface); color: var(--color-ink); border: 1px solid var(--color-border); border-radius: 8px; padding: 32px; box-shadow: var(--tw-shadow-premium); }
+        .status-label { display: inline-flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .cat-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-ink); }
+        .cat-icon { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+        .math-block { border: 1px solid var(--color-border); padding: 24px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; line-height: 2; font-size: 0.875rem; background: var(--color-surface); }
+        .math-var { display: inline-block; padding: 2px 8px; background: var(--color-stone); border: 1px solid var(--color-border); border-radius: 4px; font-weight: 500; }
+
+        .table-baseline { width: 100%; border-collapse: collapse; font-size: 0.875rem; text-align: left; }
+        .table-baseline th, .table-baseline td { padding: 16px; border-bottom: 1px solid var(--color-border); }
+        .table-baseline th { font-weight: 500; color: var(--color-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* Sim Sliders */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 12px 0; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: var(--color-border); border-radius: 1px; }
+        input[type=range]::-webkit-slider-thumb { height: 16px; width: 16px; border-radius: 50%; background: var(--color-surface); border: 2px solid var(--color-accent); -webkit-appearance: none; margin-top: -7px; cursor: pointer; }
+
+        #fallback-intro { position: absolute; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; z-index: 10000; background: var(--color-stone);}
+    </style>
+</head>
+<body>
+    <div id="global-canvas-container"></div>
+    <div id="grain-layer"></div>
+
+    <div id="intro-controls">
+        <div id="fallback-intro" class="font-serif text-3xl text-ink">StockSense</div>
+        <div id="fade-overlay"></div>
+        <button class="skip-btn" id="skip-btn">Skip</button>
+    </div>
+
+    <div id="main-shell">
+        <header>
+            <div class="font-serif text-2xl tracking-tight text-ink font-light">StockSense</div>
+            <div class="flex items-center gap-2 bg-stone border border-border p-1 rounded-full shadow-sm text-sm font-medium">
+                <button id="toggle-story" class="px-5 py-1.5 rounded-full bg-ink text-surface transition-colors">Story</button>
+                <button id="toggle-app" class="px-5 py-1.5 rounded-full text-muted hover:text-ink transition-colors">Dashboard</button>
+            </div>
+            <div class="font-mono text-xs text-muted hidden md:flex items-center gap-2">
+                <div class="w-1.5 h-1.5 rounded-full bg-moss opacity-70"></div> Baseline Nominal
+            </div>
+        </header>
+
+        <main>
+            <!-- STORY SECTION -->
+            <section id="story-section">
+                <div class="story-layout">
+                    <div class="story-sidebar">
+                        <div class="progress-item active" data-target="ch-problem"><div class="progress-line"></div>The Trap</div>
+                        <div class="progress-item" data-target="ch-math"><div class="progress-line"></div>Verifiable Math</div>
+                        <div class="progress-item" data-target="ch-spikes"><div class="progress-line"></div>Anomaly Audits</div>
+                        <div class="progress-item" data-target="ch-stress"><div class="progress-line"></div>Stress Testing</div>
+                        <div class="progress-item" data-target="ch-evidence"><div class="progress-line"></div>The Evidence</div>
+                    </div>
+
+                    <div class="story-content">
+                        <!-- Ch 1: Problem -->
+                        <div class="chapter ch-stone" id="ch-problem">
+                            <div class="max-w-2xl">
+                                <h2 class="font-serif text-4xl mb-6 font-light">The Static Trap</h2>
+                                <p class="text-lg mb-10 text-muted font-light leading-relaxed">Most operations set a reorder point once. When demand shifts or a supplier delays, the static line fails, and stock silently drains to zero.</p>
+                                <div class="card h-[350px] relative">
+                                    <svg width="100%" height="100%" viewBox="0 0 800 250" preserveAspectRatio="none">
+                                        <line x1="0" y1="120" x2="800" y2="120" stroke="var(--color-muted)" stroke-width="1" stroke-dasharray="4 4"/>
+                                        <text x="10" y="110" fill="var(--color-muted)" class="font-mono text-xs">Static ROP</text>
+                                        <line x1="0" y1="220" x2="800" y2="220" stroke="var(--color-brick)" stroke-width="1" stroke-dasharray="2 2"/>
+                                        <text x="10" y="210" fill="var(--color-brick)" class="font-mono text-xs">Zero Stock</text>
+                                        <path id="ch1-stock" fill="none" stroke="var(--color-ink)" stroke-width="2" />
+                                        <circle id="ch1-dot" cx="650" cy="220" r="6" fill="var(--color-brick)" opacity="0"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ch 2: Math -->
+                        <div class="chapter ch-stoneDark" id="ch-math">
+                            <div class="max-w-4xl">
+                                <h2 class="font-serif text-4xl mb-6 font-light">Math You Can Check</h2>
+                                <p class="text-lg mb-10 text-muted font-light leading-relaxed">AI shouldn't hide the mechanics. We calculate the buffer using transparent operations research formulas.</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                                    <div class="card bg-stone border-none shadow-none">
+                                        <label class="block text-xs uppercase tracking-widest text-muted mb-4">Target Service Level: <span id="story-sl-display" class="font-mono text-ink ml-2">95.0%</span></label>
+                                        <input type="range" id="story-sl-slider" min="0.80" max="0.99" step="0.01" value="0.95">
+                                    </div>
+                                    <div class="math-block">
+                                        <div class="text-xs text-muted mb-4 pb-4 border-b border-border uppercase tracking-widest">Safety Stock Audit</div>
+                                        SS = <span class="math-var" id="story-var-z"></span> × SQRT( (<span class="math-var" id="story-var-lt"></span> × <span class="math-var" id="story-var-dvar"></span>) + (<span class="math-var" id="story-var-davg"></span> × <span class="math-var" id="story-var-ltvar"></span>) )
+                                        <div class="mt-6 pt-4 border-t border-border font-medium text-lg text-moss">
+                                            = <span class="font-mono" id="story-var-ss-result"></span> units
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ch 3: Anomalies -->
+                        <div class="chapter ch-stone" id="ch-spikes">
+                            <div class="max-w-4xl">
+                                <h2 class="font-serif text-4xl mb-6 font-light">Spikes That Lie</h2>
+                                <p class="text-lg mb-10 text-muted font-light leading-relaxed">A static average treats data errors like legitimate growth. The AI classifies anomalies and applies bounded mathematical clamps to protect the baseline.</p>
+                                <div class="card relative h-[350px]">
+                                    <div class="absolute top-8 left-8 flex gap-6 font-mono text-xs text-muted">
+                                        <span class="flex items-center gap-2"><div class="w-3 h-3 bg-anomaly rounded-full"></div> Promo</span>
+                                        <span class="flex items-center gap-2"><div class="w-3 h-3 bg-brick rounded-full"></div> Error</span>
+                                        <span class="flex items-center gap-2"><div class="w-3 h-3 border border-muted rounded-full"></div> Censored</span>
+                                    </div>
+                                    <svg id="story-demand-chart" width="100%" height="100%" viewBox="0 0 800 250" preserveAspectRatio="none" class="mt-8"></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ch 4: Stress -->
+                        <div class="chapter ch-stoneDark" id="ch-stress">
+                            <div class="max-w-4xl">
+                                <h2 class="font-serif text-4xl mb-6 font-light">Dynamic Stress Testing</h2>
+                                <p class="text-lg mb-10 text-muted font-light leading-relaxed">Simulate supply chain shocks. Watch the deterministic engine recalculate thresholds instantly.</p>
+                                <div class="card p-0 overflow-hidden flex flex-col md:flex-row h-[450px]">
+                                    <div class="w-full md:w-1/3 border-r border-border p-8 bg-stone flex flex-col justify-center gap-8">
+                                        <button class="story-stress-btn px-6 py-3 border border-border bg-surface text-ink text-sm rounded hover:border-accent transition-colors text-left" data-scenario="baseline">Baseline Nominal</button>
+                                        <button class="story-stress-btn px-6 py-3 border border-border bg-surface text-ink text-sm rounded hover:border-accent transition-colors text-left" data-scenario="surge">+40% Demand</button>
+                                        <button class="story-stress-btn px-6 py-3 border border-border bg-surface text-ink text-sm rounded hover:border-accent transition-colors text-left" data-scenario="delay">+7d Lead Time</button>
+                                    </div>
+                                    <div class="w-full md:w-2/3 relative bg-surface p-8">
+                                        <!-- Real 3D Widget Canvas via separate renderer -->
+                                        <canvas id="ch4-widget-canvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+                                        <div class="absolute top-8 left-8 z-10 bg-surface/90 backdrop-blur p-4 border border-border rounded font-mono text-sm">
+                                            <div class="text-muted mb-2">Reorder Pt: <span id="story-sim-rop" class="text-ink ml-4"></span></div>
+                                            <div class="text-muted">Safety Stock: <span id="story-sim-ss" class="text-moss ml-4"></span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ch 5: Evidence -->
+                        <div class="chapter ch-ink" id="ch-evidence">
+                            <div class="max-w-4xl">
+                                <h2 class="font-serif text-4xl mb-6 font-light text-stone">The Evidence</h2>
+                                <p class="text-lg mb-12 text-muted font-light leading-relaxed">Algorithmic complexity must be proven against a simple baseline on chronological holdout data.</p>
+                                <div class="border border-muted/30 rounded-lg overflow-hidden bg-ink/50 mb-12">
+                                    <table class="table-baseline text-stone">
+                                        <thead class="bg-white/5 border-b border-muted/30"><tr><th>SKU</th><th>Product</th><th>Baseline Err</th><th>StockSense Err</th><th>Outcome</th></tr></thead>
+                                        <tbody id="story-evidence-tbody" class="divide-y divide-muted/30"></tbody>
+                                    </table>
+                                </div>
+                                <button id="open-app-btn" class="magnetic bg-surface text-ink px-8 py-3 rounded-full text-sm font-medium tracking-wide">Enter Replenishment Engine</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- APP SECTION -->
+            <section id="app-section" class="hidden px-12 py-16 max-w-7xl mx-auto min-h-screen">
+                <div id="app-command-view">
+                    <h2 class="font-serif text-3xl mb-10 text-ink font-light">Product Roster</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="app-grid"></div>
+                </div>
+
+                <div id="app-detail-view" class="hidden">
+                    <button id="btn-back-cmd" class="text-muted hover:text-ink text-sm font-medium flex items-center gap-2 mb-10 transition-colors">← Back to Roster</button>
+                    
+                    <div class="flex justify-between items-end mb-8 border-b border-border pb-6">
+                        <div>
+                            <div class="flex gap-4 items-center mb-2">
+                                <div class="font-mono text-muted text-sm" id="det-sku"></div>
+                                <div id="det-cat-chip" class="cat-chip"><svg class="cat-icon"><use href="#icon-box"></use></svg><span id="det-cat-text"></span></div>
+                            </div>
+                            <h2 class="font-serif text-4xl text-ink font-light" id="det-name"></h2>
+                        </div>
+                        <div id="det-status-badge" class="status-label px-3 py-1 rounded border"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 space-y-8">
+                            <!-- Chart -->
+                            <div class="card h-[400px] relative">
+                                <div class="absolute top-6 left-6 font-mono text-xs flex gap-6 text-muted">
+                                    <span class="flex items-center gap-2"><div class="w-4 h-[2px] bg-muted"></div> History</span>
+                                    <span class="flex items-center gap-2"><div class="w-4 h-[2px] bg-brick border-t border-dashed"></div> ROP</span>
+                                    <span class="flex items-center gap-2"><div class="w-4 h-[2px] bg-slate"></div> Projection</span>
+                                </div>
+                                <svg id="det-main-chart" width="100%" height="100%" viewBox="0 0 800 300" preserveAspectRatio="none" class="mt-8"></svg>
+                            </div>
+
+                            <!-- Formula & Anomaly Grid -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div class="card bg-stone border-none">
+                                    <h3 class="text-xs uppercase tracking-widest text-muted mb-6">Algorithm Audit</h3>
+                                    <div class="math-block bg-surface mb-6">ROP = (<span id="det-f-davg"></span> × <span id="det-f-lavg"></span>) + SS</div>
+                                    <div class="grid grid-cols-2 gap-4 font-mono text-sm">
+                                        <div><div class="text-[10px] text-muted uppercase">SS Value</div><div class="text-moss text-lg mt-1" id="det-f-ss-val"></div></div>
+                                        <div><div class="text-[10px] text-muted uppercase">ROP Value</div><div class="text-brick text-lg mt-1" id="det-f-rop-val"></div></div>
+                                        <div><div class="text-[10px] text-muted uppercase">Z-Score</div><div class="text-ink mt-1" id="det-f-z"></div></div>
+                                        <div><div class="text-[10px] text-muted uppercase">Est. EOQ</div><div class="text-slate mt-1" id="det-f-eoq"></div></div>
+                                    </div>
+                                </div>
+                                <div class="card p-0 overflow-hidden">
+                                    <div class="px-6 py-4 border-b border-border text-xs uppercase tracking-widest text-muted bg-stone">Anomaly Flags</div>
+                                    <div class="overflow-y-auto max-h-[220px]">
+                                        <table class="table-baseline w-full">
+                                            <tbody id="det-anomaly-body"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Simulator -->
+                        <div class="card lg:col-span-1 h-fit bg-stone border-none">
+                            <h3 class="font-serif text-2xl mb-8 text-ink font-light">Scenario Sim</h3>
+                            <div class="mb-6">
+                                <label class="flex justify-between text-xs text-muted mb-2 uppercase tracking-wide">Demand Scale: <span id="sim-d-txt" class="font-mono text-ink">1.0x</span></label>
+                                <input type="range" id="sim-d-slider" min="0.5" max="2.5" step="0.1" value="1.0">
+                            </div>
+                            <div class="mb-8">
+                                <label class="flex justify-between text-xs text-muted mb-2 uppercase tracking-wide">Lead Time: <span id="sim-l-txt" class="font-mono text-ink"></span></label>
+                                <input type="range" id="sim-l-slider" min="1" max="45" step="1" value="14">
+                            </div>
+                            <div class="border-t border-border pt-6 space-y-4 font-mono text-sm">
+                                <div class="flex justify-between items-center"><span class="text-muted">Base ROP</span><span class="text-ink" id="sim-base-rop"></span></div>
+                                <div class="flex justify-between items-center"><span class="text-ink font-medium">New ROP</span><span class="text-brick text-xl" id="sim-rev-rop"></span></div>
+                                <div class="h-px w-full bg-border my-4"></div>
+                                <div class="flex justify-between items-center"><span class="text-muted">Base SS</span><span class="text-ink" id="sim-base-ss"></span></div>
+                                <div class="flex justify-between items-center"><span class="text-ink font-medium">New SS</span><span class="text-moss text-xl" id="sim-rev-ss"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Component to adapt -->
+                    <div class="mt-24 border-t border-border pt-12">
+                        <h2 class="font-serif text-2xl mb-4 text-ink font-light">Component to adapt</h2>
+                        <p class="text-muted mb-8 text-sm max-w-2xl">Restyle this animated number ticker to the current premium design tokens. It aggregates total safety stock globally.</p>
+                        <div class="card flex items-center justify-between">
+                            <div>
+                                <div class="text-xs uppercase tracking-widest text-muted mb-1">Global Metric</div>
+                                <div class="text-lg text-ink font-medium">Aggregate Network Buffer</div>
+                            </div>
+                            <div class="text-4xl font-mono text-moss flex items-center bg-stone px-6 py-3 rounded border border-border" id="demo-ticker-container">
+                                <!-- JS Populated -->
+                            </div>
+                            <button id="demo-ticker-trigger" class="px-6 py-2 bg-surface border border-border text-sm rounded hover:bg-stone transition-colors">Simulate Network Shift</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- SVG Definitions for Category Icons -->
+    <svg style="display:none;">
+        <symbol id="icon-box" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></symbol>
+    </svg>
+
+    <script>
+        const InventoryMath = {
+            mean: (arr) => arr.reduce((a, b) => a + b, 0) / arr.length,
+            variance: (arr) => { const m = InventoryMath.mean(arr); return arr.reduce((a, b) => a + Math.pow(b - m, 2), 0) / (arr.length || 1); },
+            inverseNormalCDF: (p) => {
+                if (p <= 0.0) return -10; if (p >= 1.0) return 10;
+                const c0 = 2.515517, c1 = 0.802853, c2 = 0.010328, d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+                const t = Math.sqrt(-2.0 * Math.log(p < 0.5 ? p : 1.0 - p));
+                const z = t - (c0 + t * (c1 + t * c2)) / (1.0 + t * (d1 + t * (d2 + t * d3)));
+                return p < 0.5 ? -z : z;
+            },
+            calculateSS: (avgLT, varD, avgD, varLT, z) => Math.max(0, z * Math.sqrt((avgLT * varD) + (Math.pow(avgD, 2) * varLT))),
+            calculateROP: (avgD, avgLT, ss) => (avgD * avgLT) + ss,
+            calculateEOQ: (annD, ordC, hldC) => Math.sqrt((2 * annD * ordC) / hldC),
+            calcPos: (onH, onO) => onH + onO
+        };
+
+        const productsDef = [
+            { id: 'ROB-01', name: '6-Axis Joint Assembly', category: 'Robotics', profile: 'intermittent', base: 4, baseLT: 25 },
+            { id: 'ROB-02', name: 'Carbon Quad Frame', category: 'Robotics', profile: 'intermittent', base: 10, baseLT: 15 },
+            { id: 'HW-01', name: 'NEMA23 Stepper Motor', category: 'Hardware', profile: 'intermittent', base: 35, baseLT: 12 },
+            { id: 'HW-02', name: 'Shielded Cable Spool', category: 'Hardware', profile: 'intermittent', base: 12, baseLT: 18 },
+            { id: 'ELEC-01', name: 'Industrial LED Bulb', category: 'Electronics', profile: 'mixed', base: 85, baseLT: 8 },
+            { id: 'ELEC-02', name: 'Li-Ion Cell Pack', category: 'Electronics', profile: 'mixed', base: 60, baseLT: 14 },
+            { id: 'FOOD-01', name: 'Tinned Tomato Puree', category: 'Food', profile: 'steady', base: 250, baseLT: 6 },
+            { id: 'STAT-01', name: 'Kraft Spiral Notebook', category: 'Stationery', profile: 'seasonal', base: 150, baseLT: 14 }
+        ];
+
+        let seed = 1234; const random = () => { const x = Math.sin(seed++) * 10000; return x - Math.floor(x); };
+        const mockApi = { products: [] };
+
+        productsDef.forEach((def, idx) => {
+            const dem = [], anom = [];
+            for(let i=0; i<120; i++) {
+                let v = def.base;
+                if(def.profile === 'steady') v += (random() * 0.2 - 0.1) * def.base;
+                if(def.profile === 'intermittent') v = random() > 0.6 ? def.base * (1 + random()*0.4) : 0;
+                if(def.profile === 'seasonal') v += Math.sin((i/120)*Math.PI*2) * (def.base*0.3) + (random()*0.1*def.base);
+                if(def.profile === 'mixed') v += (random() * 0.4 - 0.2) * def.base;
+                
+                let type = 'normal';
+                if(random() > 0.96) {
+                    const r = random();
+                    if(r<0.4) { v *= 2.5; type = 'promotion'; } else if(r<0.7) { v *= 4; type = 'data_error'; } else { v = 0; type = 'censored'; }
+                    anom.push({ day: i+1, raw: Math.round(v), type: type, adj: Math.round(def.base * 1.1) });
+                }
+                dem.push(Math.max(0, Math.round(v)));
+            }
+            const lts = []; for(let i=0; i<10; i++) lts.push(Math.max(1, Math.round(def.baseLT + (random() * 2 - 1) * (def.baseLT * 0.2))));
+            const cost = 30 + idx * 20;
+            
+            mockApi.products.push({
+                ...def, dailyDemand: dem, anomalies: anom, leadTimes: lts,
+                orderingCost: 100 + Math.round(random()*50), holdingCost: cost * 0.15, unitCost: cost,
+                onHand: Math.round(def.base * def.baseLT * 0.8), onOrder: Math.round(def.base * def.baseLT * 0.5),
+                targetServiceLevel: 0.90 + (random()*0.09)
+            });
+        });
+
+        const procProducts = mockApi.products.map(p => {
+            const cd = [...p.dailyDemand]; p.anomalies.forEach(a => cd[a.day-1] = a.adj);
+            const aD = InventoryMath.mean(cd), vD = InventoryMath.variance(cd);
+            const aL = InventoryMath.mean(p.leadTimes), vL = InventoryMath.variance(p.leadTimes);
+            const z = InventoryMath.inverseNormalCDF(p.targetServiceLevel);
+            const ss = InventoryMath.calculateSS(aL, vD, aD, vL, z);
+            const rop = InventoryMath.calculateROP(aD, aL, ss);
+            const pos = InventoryMath.calcPos(p.onHand, p.onOrder);
+            const eoq = InventoryMath.calculateEOQ(aD*365, p.orderingCost, p.holdingCost);
+            
+            let status = 'healthy'; if(pos <= rop) status = 'order'; else if (pos <= rop*1.2) status = 'watch';
+            return { ...p, cd, aD, vD, aL, vL, z, ss, rop, pos, eoq, status, daysCover: Math.round(pos/aD), confFlag: (Math.sqrt(vL)/aL) > 0.25 ? 'Low' : 'High' };
+        });
+
+        let scene, camera, renderer, pmrem, globalPathCurve, scrollProgress = 0, mouseX = 0, mouseY = 0;
+        let ringGroup, warehouseGroup, dustParticles, introActive = true, fpsMonitor = { frames: 0, start: 0, checked: false };
+        const wordmarkCanvas = document.createElement('canvas'); wordmarkCanvas.width = 1024; wordmarkCanvas.height = 256;
+        const wmCtx = wordmarkCanvas.getContext('2d'); let wmTex, wmMesh;
+
+        // Shared Materials
+        const matLib = {};
+        function initMaterials() {
+            const hx = getHex;
+            matLib.metal = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.9, roughness: 0.2 });
+            matLib.graphite = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.6, roughness: 0.4 });
+            matLib.carbon = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.4, roughness: 0.6 });
+            matLib.wood = new THREE.MeshStandardMaterial({ color: 0x8B5A2B, roughness: 0.8 });
+            matLib.kraft = new THREE.MeshStandardMaterial({ color: 0xC19A6B, roughness: 0.9 });
+            matLib.glass = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.8, roughness: 0.1, transparent: true, opacity: 0.4 });
+            matLib.emissive = new THREE.MeshStandardMaterial({ color: 0xffddaa, emissive: 0xffaa55, emissiveIntensity: 2 });
+            matLib.paper = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+            matLib.accent = new THREE.MeshStandardMaterial({ color: hx('accent'), roughness: 0.7 });
+            matLib.wire = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        }
+
+        function createTagTexture(product) {
+            const c = document.createElement('canvas'); c.width = 256; c.height = 64; const ctx = c.getContext('2d');
+            ctx.fillStyle = StockSenseTheme.surface; ctx.beginPath(); ctx.roundRect(2,2,252,60,8); ctx.fill();
+            ctx.strokeStyle = StockSenseTheme.border; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = StockSenseTheme.ink; ctx.font = '600 24px Inter, sans-serif'; ctx.fillText(product.name.substring(0, 14), 16, 32);
+            ctx.fillStyle = StockSenseTheme.muted; ctx.font = '400 16px JetBrains Mono, monospace'; ctx.fillText(product.id, 16, 52);
+            const stColor = StockSenseTheme[product.status]; ctx.fillStyle = stColor;
+            ctx.beginPath(); ctx.arc(230, 32, 10, 0, Math.PI*2); ctx.fill();
+            return new THREE.CanvasTexture(c);
+        }
+
+        function makeProduct(id, product) {
+            const grp = new THREE.Group();
+            // Extrude bevel helper
+            const rShape = (w, h, r) => { const s = new THREE.Shape(); s.moveTo(-w/2+r, -h/2); s.lineTo(w/2-r, -h/2); s.quadraticCurveTo(w/2, -h/2, w/2, -h/2+r); s.lineTo(w/2, h/2-r); s.quadraticCurveTo(w/2, h/2, w/2-r, h/2); s.lineTo(-w/2+r, h/2); s.quadraticCurveTo(-w/2, h/2, -w/2, h/2-r); s.lineTo(-w/2, -h/2+r); s.quadraticCurveTo(-w/2, -h/2, -w/2+r, -h/2); return s; };
+            const exSet = { depth: 0, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.05, bevelThickness: 0.05 };
+
+            switch(id) {
+                case 'ROB-01': // Arm
+                    const b1 = new THREE.Mesh(new THREE.ExtrudeGeometry(rShape(1,1,0.2), {...exSet, depth: 0.2}), matLib.graphite); b1.rotation.x = Math.PI/2;
+                    const j1 = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.4,16), matLib.metal); j1.position.y = 0.3; j1.rotation.z = Math.PI/2;
+                    const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.2, 0.2), matLib.accent); a1.position.y = 0.9;
+                    const j2 = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.3,16), matLib.metal); j2.position.y = 1.5; j2.rotation.z = Math.PI/2;
+                    const g1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.4, 0.05), matLib.graphite); g1.position.set(0.1, 1.8, 0);
+                    const g2 = g1.clone(); g2.position.set(-0.1, 1.8, 0);
+                    grp.add(b1, j1, a1, j2, g1, g2); break;
+                case 'ROB-02': // Quad
+                    const cb = new THREE.Mesh(new THREE.ExtrudeGeometry(rShape(0.8,0.8,0.2), {...exSet, depth:0.1}), matLib.carbon); cb.rotation.x = Math.PI/2;
+                    [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(p => {
+                        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 1.2), matLib.graphite);
+                        arm.rotation.y = p[0]*p[1] > 0 ? Math.PI/4 : -Math.PI/4;
+                        const mot = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.2,12), matLib.metal); mot.position.set(p[0]*0.5, 0.1, p[1]*0.5);
+                        const rot = new THREE.Mesh(new THREE.TorusGeometry(0.3,0.02,8,24), matLib.glass); rot.rotation.x = Math.PI/2; rot.position.copy(mot.position).setY(0.2);
+                        grp.add(arm, mot, rot);
+                    }); grp.add(cb); break;
+                case 'HW-01': // Stepper
+                    const stB = new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,1.2,24), matLib.metal); stB.rotation.x = Math.PI/2;
+                    const flg = new THREE.Mesh(new THREE.ExtrudeGeometry(rShape(1.4,1.4,0.1), {...exSet, depth:0.1}), matLib.metal); flg.position.z = 0.65;
+                    const shf = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.5,12), matLib.metal); shf.rotation.x = Math.PI/2; shf.position.z = 0.9;
+                    grp.add(stB, flg, shf); break;
+                case 'HW-02': // Spool
+                    const spC = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,1.2,16), matLib.wood);
+                    const spE1 = new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,0.05,32), matLib.wood); spE1.position.y = 0.6;
+                    const spE2 = spE1.clone(); spE2.position.y = -0.6;
+                    const cbl = new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,1.1,24), matLib.wire);
+                    grp.add(spC, spE1, spE2, cbl); break;
+                case 'ELEC-01': // Bulb
+                    const pts = []; for(let i=0;i<=10;i++) pts.push(new THREE.Vector2(0.2 + Math.sin(i/10*Math.PI)*0.4, (i/10)*1.2));
+                    const gls = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), matLib.glass); gls.position.y = 0.3;
+                    const fil = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.4), matLib.emissive); fil.position.y = 0.8;
+                    const bas = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.2,0.3,16), matLib.metal); bas.position.y = 0.15;
+                    grp.add(gls, fil, bas); break;
+                case 'ELEC-02': // Battery
+                    for(let x=-0.2; x<=0.2; x+=0.4) {
+                        for(let z=-0.4; z<=0.4; z+=0.4) {
+                            const cl = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,1.2,16), matLib.metal); cl.position.set(x, 0, z); grp.add(cl);
+                        }
+                    }
+                    const wrp = new THREE.Mesh(new THREE.BoxGeometry(0.78, 1.1, 1.18), matLib.accent); grp.add(wrp); break;
+                case 'FOOD-01': // Tin
+                    const tin = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,1.2,32), matLib.paper);
+                    const r1 = new THREE.Mesh(new THREE.TorusGeometry(0.5,0.03,8,32), matLib.metal); r1.rotation.x=Math.PI/2; r1.position.y=0.6;
+                    const r2 = r1.clone(); r2.position.y=-0.6;
+                    grp.add(tin, r1, r2); break;
+                case 'STAT-01': // Notebook
+                    const bk = new THREE.Mesh(new THREE.ExtrudeGeometry(rShape(1.2,1.6,0.05), {...exSet, depth:0.1}), matLib.kraft);
+                    for(let i=-0.7; i<=0.7; i+=0.15) {
+                        const rng = new THREE.Mesh(new THREE.TorusGeometry(0.06,0.02,8,16), matLib.metal); rng.position.set(-0.6, i, 0.05); rng.rotation.x = Math.PI/2; grp.add(rng);
+                    }
+                    grp.add(bk); break;
+            }
+
+            // Standardize scale to radius ~0.5
+            const box = new THREE.Box3().setFromObject(grp);
+            const r = box.getBoundingSphere(new THREE.Sphere()).radius || 1;
+            const sf = 0.6 / r; grp.scale.set(sf, sf, sf);
+            
+            const box2 = new THREE.Box3().setFromObject(grp);
+            grp.position.y = -box2.min.y; // Floor align
+            
+            // Soft shadow plane
+            const sdC = document.createElement('canvas'); sdC.width=128; sdC.height=128; const ctx = sdC.getContext('2d');
+            const grd = ctx.createRadialGradient(64,64,0, 64,64,64); grd.addColorStop(0, 'rgba(0,0,0,0.3)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grd; ctx.fillRect(0,0,128,128);
+            const sdM = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sdC), transparent: true, depthWrite: false });
+            const sdw = new THREE.Mesh(new THREE.PlaneGeometry(2,2), sdM); sdw.rotation.x = -Math.PI/2; sdw.position.y = 0.01;
+            grp.add(sdw);
+
+            // Tag & Leader line
+            const tMat = new THREE.SpriteMaterial({ map: createTagTexture(product), transparent: true, opacity: 0, depthTest: false });
+            const tag = new THREE.Sprite(tMat); tag.scale.set(1.5, 0.375, 1); tag.position.set(0, box2.max.y + 1.2, 0); tag.isTag = true;
+            
+            const lMat = new THREE.LineBasicMaterial({ color: getHex('border'), transparent: true, opacity: 0, depthTest: false });
+            const lGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, box2.max.y, 0), tag.position]);
+            const line = new THREE.Line(lGeo, lMat); line.isLeader = true;
+            
+            grp.add(tag, line); grp.userData = { id: product.id, bobOff: random()*10 };
+            return grp;
+        }
+
+        function updateIntroText(pIn) {
+            wmCtx.clearRect(0,0,1024,256);
+            wmCtx.textAlign = 'center'; wmCtx.textBaseline = 'middle';
+            const word = "StockSense"; const ch = word.split('');
+            const x0 = 512 - 250;
+            
+            wmCtx.fillStyle = StockSenseTheme.ink; wmCtx.font = '300 90px Fraunces, serif';
+            ch.forEach((c, i) => {
+                const pr = Math.max(0, Math.min(1, (pIn - i*0.05) * 3));
+                const y = 100 + (1 - gsap.parseEase("power3.out")(pr)) * 50;
+                wmCtx.globalAlpha = pr; wmCtx.fillText(c, x0 + i*55, y);
+            });
+
+            if (pIn > 0.6) {
+                const lp = Math.min(1, (pIn - 0.6) * 4);
+                wmCtx.beginPath(); wmCtx.moveTo(250, 150); wmCtx.lineTo(250 + 524*lp, 150);
+                wmCtx.strokeStyle = StockSenseTheme.accent; wmCtx.lineWidth = 3; wmCtx.stroke();
+            }
+            if (pIn > 0.8) {
+                wmCtx.globalAlpha = Math.min(1, (pIn - 0.8) * 5);
+                wmCtx.font = '400 20px Inter, sans-serif'; wmCtx.fillStyle = StockSenseTheme.muted;
+                wmCtx.fillText("Inventory decisions you can check.", 512, 190);
+            }
+            if(wmTex) wmTex.needsUpdate = true;
+        }
+
+        function initThree() {
+            const cont = document.getElementById('global-canvas-container');
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            cont.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene(); scene.background = new THREE.Color(getHex('stone'));
+            scene.fog = new THREE.Fog(getHex('stone'), 10, 40);
+
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 200);
+            camera.position.set(0, 2, 11);
+
+            // PMREM Environment
+            pmrem = new THREE.PMREMGenerator(renderer);
+            const envSc = new THREE.Scene(); 
+            const p1 = new THREE.Mesh(new THREE.PlaneGeometry(10,10), new THREE.MeshBasicMaterial({color:0xffffff})); p1.position.set(0,10,0); p1.rotation.x=Math.PI/2;
+            const p2 = new THREE.Mesh(new THREE.PlaneGeometry(10,10), new THREE.MeshBasicMaterial({color:0xaaaaaa})); p2.position.set(10,0,0); p2.rotation.y=-Math.PI/2;
+            envSc.add(p1, p2);
+            scene.environment = pmrem.fromScene(envSc).texture;
+
+            // Lights
+            scene.add(new THREE.HemisphereLight(getHex('stone'), getHex('ink'), 0.6));
+            const dl = new THREE.DirectionalLight(0xffffff, 1.0); dl.position.set(5, 10, 5); scene.add(dl);
+
+            initMaterials();
+
+            // Wordmark
+            wmTex = new THREE.CanvasTexture(wordmarkCanvas);
+            const wmMat = new THREE.MeshBasicMaterial({ map: wmTex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide, depthWrite: false });
+            wmMesh = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), wmMat); scene.add(wmMesh);
+
+            // Ring
+            ringGroup = new THREE.Group(); scene.add(ringGroup);
+            const rad = 4.2;
+            procProducts.slice(0,8).forEach((p, i) => {
+                const mesh = makeProduct(p.id, p);
+                const angle = (i / 8) * Math.PI * 2;
+                mesh.position.set(Math.cos(angle)*rad, 0, Math.sin(angle)*rad);
+                mesh.userData.baseAngle = angle;
+                ringGroup.add(mesh);
+            });
+            ringGroup.rotation.x = 15 * Math.PI/180;
+
+            buildWarehouse();
+        }
+
+        function buildWarehouse() {
+            warehouseGroup = new THREE.Group(); scene.add(warehouseGroup);
+            
+            // Curve Path
+            globalPathCurve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0, 2, -15), // End of intro
+                new THREE.Vector3(0, 2, -30), // Ch 1
+                new THREE.Vector3(5, 2, -50), // Ch 2
+                new THREE.Vector3(-4, 2, -70),// Ch 3
+                new THREE.Vector3(0, 2, -90), // Ch 4
+                new THREE.Vector3(2, 2, -110) // Ch 5
+            ]);
+
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 150), new THREE.MeshStandardMaterial({color: getHex('stone'), roughness: 0.9}));
+            floor.rotation.x = -Math.PI/2; floor.position.set(0, 0, -60); warehouseGroup.add(floor);
+
+            // Ch1 Shelf (z=-30)
+            const shMat = new THREE.MeshStandardMaterial({color: getHex('border')});
+            const shelf = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 1), shMat); shelf.position.set(-4, 2, -30); warehouseGroup.add(shelf);
+            const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.8,0.8), matLib.kraft); b1.position.set(-2.5, 4.4, -30); warehouseGroup.add(b1);
+
+            // Ch2 Wall (z=-50)
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 0.5), new THREE.MeshStandardMaterial({color: getHex('stoneDark')}));
+            wall.position.set(6, 3, -50); wall.rotation.y = -Math.PI/4; warehouseGroup.add(wall);
+
+            // Light Shafts
+            const lsMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+            for(let i=0; i<5; i++) {
+                const ls = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 4, 15, 16, 1, true), lsMat);
+                ls.position.set((Math.random()-0.5)*10, 7.5, -30 - Math.random()*80);
+                warehouseGroup.add(ls);
+            }
+
+            // Dust
+            const dGeo = new THREE.BufferGeometry(); const dPos = [];
+            for(let i=0; i<200; i++) dPos.push((Math.random()-0.5)*20, Math.random()*8, -20 - Math.random()*100);
+            dGeo.setAttribute('position', new THREE.Float32BufferAttribute(dPos, 3));
+            dustParticles = new THREE.Points(dGeo, new THREE.PointsMaterial({color: getHex('border'), size: 0.05, transparent: true, opacity: 0.5}));
+            warehouseGroup.add(dustParticles);
+        }
+
+        let introTl;
+        function runIntro() {
+            initThree(); document.getElementById('fallback-intro').style.display = 'none';
+            const textObj = { p: 0 };
+            introTl = gsap.timeline({ onComplete: () => { introActive = false; gsap.to('#main-shell', { opacity: 1, visibility: 'visible', duration: 0.8 }); initStory(); initApp(); }});
+            
+            introTl.to(textObj, { p: 1, duration: 2.5, ease: 'power2.inOut', onUpdate: () => updateIntroText(textObj.p) }, 0);
+            introTl.fromTo(ringGroup.rotation, { y: 0 }, { y: Math.PI * 2.5, duration: 4, ease: 'power2.inOut' }, 2.0);
+            introTl.to(camera.position, { z: -15, duration: 4.5, ease: 'power2.inOut' }, 5.5);
+            introTl.to('#fade-overlay', { opacity: 1, duration: 1 }, 8.5);
+            introTl.to('#intro-controls', { opacity: 0, duration: 0.5 }, 9.5);
+
+            fpsMonitor.start = performance.now();
+            renderLoop();
+        }
+
+        function renderLoop() {
+            requestAnimationFrame(renderLoop);
+            if (!introActive && !document.getElementById('story-section').classList.contains('hidden')) {
+                // Scroll driven camera
+                const p = scrollProgress;
+                const camPos = globalPathCurve.getPoint(p);
+                const lookPos = globalPathCurve.getPoint(Math.min(1, p + 0.05));
+                camera.position.lerp(camPos.add(new THREE.Vector3(mouseX * 0.5, mouseY * 0.5, 0)), 0.1);
+                camera.lookAt(lookPos);
+                dustParticles.rotation.y += 0.001;
+            } else if (introActive) {
+                // Intro dynamics
+                const t = performance.now() * 0.001;
+                ringGroup.children.forEach(c => {
+                    c.position.y = Math.sin(t * 2 + c.userData.bobOff) * 0.1;
+                    c.rotation.y += 0.01;
+                    
+                    // Tag Visibility Logic
+                    const tag = c.children.find(ch => ch.isTag); const line = c.children.find(ch => ch.isLeader);
+                    if(tag && line) {
+                        const wp = new THREE.Vector3(); c.getWorldPosition(wp);
+                        const dist = wp.distanceTo(camera.position);
+                        let targetOp = dist < 12 && camera.position.z > 0 ? 1 : 0;
+                        
+                        // Overlap check
+                        if(targetOp === 1) {
+                            const screenTag = tag.getWorldPosition(new THREE.Vector3()).project(camera);
+                            const screenWm = wmMesh.getWorldPosition(new THREE.Vector3()).project(camera);
+                            if (Math.abs(screenTag.x - screenWm.x) < 0.4 && Math.abs(screenTag.y - screenWm.y) < 0.2) targetOp = 0;
+                        }
+                        tag.material.opacity += (targetOp - tag.material.opacity) * 0.1;
+                        line.material.opacity = tag.material.opacity;
+                    }
+                });
+
+                if(!fpsMonitor.checked) {
+                    fpsMonitor.frames++;
+                    if(fpsMonitor.frames === 30) {
+                        if (30 / ((performance.now() - fpsMonitor.start)/1000) < 40) renderer.setPixelRatio(1);
+                        fpsMonitor.checked = true;
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            window.addEventListener('mousemove', e => { mouseX = (e.clientX/window.innerWidth)*2-1; mouseY = -(e.clientY/window.innerHeight)*2+1; });
+            document.querySelectorAll('.magnetic').forEach(b => {
+                b.addEventListener('mousemove', e => { const r=b.getBoundingClientRect(); gsap.to(b, {x:(e.clientX-r.left-r.width/2)*0.2, y:(e.clientY-r.top-r.height/2)*0.2, duration:0.2}); });
+                b.addEventListener('mouseleave', () => gsap.to(b, {x:0, y:0, duration:0.4, ease:'power3.out'}));
+            });
+            document.getElementById('skip-btn').addEventListener('click', () => { if(introTl) introTl.progress(1); });
+            if(window.location.search.includes('skip=1')) { document.getElementById('intro-controls').style.display='none'; runIntro(); introTl.progress(1); } else runIntro();
+            
+            document.getElementById('toggle-story').addEventListener('click', () => switchMode('story'));
+            document.getElementById('toggle-app').addEventListener('click', () => switchMode('app'));
+            document.getElementById('open-app-btn').addEventListener('click', () => switchMode('app'));
+        });
+
+        const switchMode = (mode) => {
+            window.scrollTo(0,0); const isS = mode==='story';
+            document.getElementById('toggle-story').className = `px-5 py-1.5 rounded-full transition-colors ${isS ? 'bg-ink text-surface' : 'text-muted hover:text-ink'}`;
+            document.getElementById('toggle-app').className = `px-5 py-1.5 rounded-full transition-colors ${!isS ? 'bg-ink text-surface' : 'text-muted hover:text-ink'}`;
+            document.getElementById('app-section').classList.toggle('hidden', isS);
+            document.getElementById('story-section').classList.toggle('hidden', !isS);
+            document.body.classList.toggle('app-active', !isS);
+            if(isS) ScrollTrigger.refresh(); else triggerTickerAnimation();
+        };
+
+        function initStory() {
+            gsap.utils.toArray('.chapter').forEach((ch, i) => {
+                ScrollTrigger.create({ trigger: ch, start: "top center", end: "bottom center",
+                    onUpdate: self => {
+                        scrollProgress = (i + self.progress) / 5;
+                        if(self.isActive) {
+                            document.querySelectorAll('.progress-item').forEach(e=>e.classList.remove('active'));
+                            document.querySelectorAll('.progress-item')[i].classList.add('active');
+                        }
+                    }
+                });
+            });
+
+            // Math Sliders
+            const p2 = procProducts[0];
+            const mathState = { z: p2.z, ss: p2.ss };
+            const slSlider = document.getElementById('story-sl-slider');
+            const updateMath = () => {
+                const sl = parseFloat(slSlider.value); document.getElementById('story-sl-display').innerText = (sl*100).toFixed(0)+'%';
+                const nz = InventoryMath.inverseNormalCDF(sl);
+                document.getElementById('story-var-lt').innerText = p2.aL.toFixed(1); document.getElementById('story-var-dvar').innerText = p2.vD.toFixed(0);
+                document.getElementById('story-var-davg').innerText = Math.pow(p2.aD,2).toFixed(0); document.getElementById('story-var-ltvar').innerText = p2.vL.toFixed(1);
+                const nss = InventoryMath.calculateSS(p2.aL, p2.vD, p2.aD, p2.vL, nz);
+                gsap.to(mathState, { z: nz, ss: nss, duration: 0.3, onUpdate: () => {
+                    document.getElementById('story-var-z').innerText = mathState.z.toFixed(2);
+                    document.getElementById('story-var-ss-result').innerText = Math.round(mathState.ss);
+                }});
+            };
+            slSlider.addEventListener('input', updateMath); updateMath();
+
+            // Evidence Table
+            const evTb = document.getElementById('story-evidence-tbody');
+            [{id:0, b:'18%', s:'12%', w:1}, {id:2, b:'24%', s:'15%', w:1}, {id:7, b:'9%', s:'11%', w:0}].forEach(d => {
+                const pr = procProducts[d.id];
+                evTb.innerHTML += `<tr><td class="text-muted/60 font-mono">${pr.id}</td><td>${pr.name}</td><td class="font-mono text-muted">${d.b}</td><td class="font-mono ${d.w?'text-stone font-medium':''}">${d.s}</td>
+                <td><span class="text-[10px] uppercase tracking-widest px-2 py-1 rounded border ${d.w?'border-stone text-stone':'border-muted/50 text-muted/50'}">${d.w?'StockSense Wins':'Baseline Wins'}</span></td></tr>`;
+            });
+
+            initCh4Widget();
+        }
+
+        function initApp() {
+            const grid = document.getElementById('app-grid'); grid.innerHTML = '';
+            procProducts.forEach(p => {
+                const d = document.createElement('div'); d.className = 'card cursor-pointer hover:border-ink transition-colors';
+                d.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="font-mono text-xs text-muted">${p.id}</div>
+                        <div class="status-label" style="color:var(--color-${p.status})"><div class="status-dot bg-${p.status}"></div>${p.status}</div>
+                    </div>
+                    <h3 class="font-serif text-xl mb-6">${p.name}</h3>
+                    <div class="grid grid-cols-2 gap-4 font-mono text-sm border-t border-border pt-4">
+                        <div><div class="text-[10px] text-muted uppercase">Cover</div><div class="mt-1">${p.daysCover}d</div></div>
+                        <div><div class="text-[10px] text-muted uppercase">Service</div><div class="mt-1">${(p.targetServiceLevel*100).toFixed(0)}%</div></div>
+                    </div>
+                `;
+                d.addEventListener('click', () => openDetail(p)); grid.appendChild(d);
+            });
+            document.getElementById('btn-back-cmd').addEventListener('click', () => { document.getElementById('app-detail-view').classList.add('hidden'); document.getElementById('app-command-view').classList.remove('hidden'); });
+        }
+
+        let widgetScene, widgetRen, widgetCam, widgCrate, widgSS, widgROP;
+        function initCh4Widget() {
+            const c = document.getElementById('ch4-widget-canvas'); if(!c) return;
+            widgetRen = new THREE.WebGLRenderer({ canvas: c, antialias: true, alpha: true });
+            widgetScene = new THREE.Scene(); widgetCam = new THREE.PerspectiveCamera(40, c.clientWidth/c.clientHeight, 0.1, 50);
+            widgetCam.position.set(10, 8, 10); widgetCam.lookAt(0,2,0);
+            widgetScene.add(new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 1));
+            
+            widgCrate = new THREE.Mesh(new THREE.BoxGeometry(3,1,3), matLib.kraft); widgCrate.position.y=0.5; widgetScene.add(widgCrate);
+            widgSS = new THREE.Mesh(new THREE.BoxGeometry(3.2,1,3.2), new THREE.MeshBasicMaterial({color: getHex('moss'), transparent:true, opacity:0.2})); widgSS.position.y=0.5; widgetScene.add(widgSS);
+            widgROP = new THREE.Mesh(new THREE.PlaneGeometry(5,5), new THREE.MeshBasicMaterial({color: getHex('brick'), wireframe:true, transparent:true, opacity:0.5})); widgROP.rotation.x=-Math.PI/2; widgROP.position.y=3; widgetScene.add(widgROP);
+            
+            const wLoop = () => { requestAnimationFrame(wLoop); widgetRen.render(widgetScene, widgetCam); }; wLoop();
+            
+            document.querySelectorAll('.story-stress-btn').forEach(b => {
+                b.addEventListener('click', e => {
+                    document.querySelectorAll('.story-stress-btn').forEach(btn => { btn.classList.remove('border-ink', 'font-medium'); });
+                    e.target.classList.add('border-ink', 'font-medium');
+                    
+                    const type = e.target.dataset.scenario;
+                    let m=1, add=0; if(type==='surge') m=1.4; if(type==='delay') add=7;
+                    const p = procProducts[0];
+                    const nss = Math.round(InventoryMath.calculateSS(p.aL+add, p.vD*m*m, p.aD*m, p.vL+(add>0?2:0), 1.645));
+                    const nrop = Math.round((p.aD*m * (p.aL+add)) + nss);
+                    
+                    document.getElementById('story-sim-ss').innerText = nss; document.getElementById('story-sim-rop').innerText = nrop;
+                    gsap.to(widgSS.scale, {y: Math.max(0.1, nss/10), duration: 0.5});
+                    gsap.to(widgROP.position, {y: nrop/15, duration: 0.5});
+                });
+            });
+            document.querySelector('.story-stress-btn[data-scenario="baseline"]').click();
+        }
+
+        function openDetail(p) {
+            document.getElementById('app-command-view').classList.add('hidden'); document.getElementById('app-detail-view').classList.remove('hidden');
+            document.getElementById('det-sku').innerText = p.id; document.getElementById('det-name').innerText = p.name;
+            document.getElementById('det-cat-text').innerText = p.category;
+            const bdg = document.getElementById('det-status-badge'); bdg.innerHTML = `<div class="status-dot bg-${p.status}"></div>${p.status}`; bdg.style.color = `var(--color-${p.status})`; bdg.style.borderColor = `var(--color-${p.status})`;
+
+            document.getElementById('det-f-davg').innerText = p.aD.toFixed(1); document.getElementById('det-f-lavg').innerText = p.aL.toFixed(1);
+            document.getElementById('det-f-ss-val').innerText = Math.round(p.ss); document.getElementById('det-f-rop-val').innerText = Math.round(p.rop);
+            document.getElementById('det-f-z').innerText = p.z.toFixed(2); document.getElementById('det-f-eoq').innerText = Math.round(p.eoq);
+
+            const tbody = document.getElementById('det-anomaly-body'); tbody.innerHTML = '';
+            p.anomalies.forEach(a => {
+                tbody.innerHTML += `<tr><td class="font-mono text-muted">Day ${a.day}</td><td class="text-brick font-mono">${a.raw}</td><td><span class="px-2 py-1 bg-stone border border-border rounded text-[10px] uppercase">${a.type}</span></td><td class="text-moss font-mono">${a.adj}</td></tr>`;
+            });
+
+            // Simulator
+            const ds = document.getElementById('sim-d-slider'), ls = document.getElementById('sim-l-slider');
+            ds.value = 1.0; ls.value = Math.round(p.aL);
+            document.getElementById('sim-base-rop').innerText = Math.round(p.rop); document.getElementById('sim-base-ss').innerText = Math.round(p.ss);
+            
+            const upSim = () => {
+                const m = parseFloat(ds.value), l = parseFloat(ls.value);
+                document.getElementById('sim-d-txt').innerText = m.toFixed(1)+'x'; document.getElementById('sim-l-txt').innerText = l+'d';
+                const nss = InventoryMath.calculateSS(l, p.vD*m*m, p.aD*m, p.vL, p.z);
+                document.getElementById('sim-rev-rop').innerText = Math.round(InventoryMath.calculateROP(p.aD*m, l, nss));
+                document.getElementById('sim-rev-ss').innerText = Math.round(nss);
+            };
+            ds.addEventListener('input', upSim); ls.addEventListener('input', upSim); upSim();
+        }
+
+        function updateTicker(val) {
+            const cont = document.getElementById('demo-ticker-container');
+            const str = Math.round(val).toString();
+            if(cont.children.length !== str.length) {
+                cont.innerHTML = '';
+                str.split('').forEach(c => {
+                    const w = document.createElement('div'); w.style.cssText = 'display:inline-block; overflow:hidden; height:1em; line-height:1em;';
+                    const col = document.createElement('div'); col.style.transition = 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)'; col.dataset.c = c;
+                    for(let i=0;i<10;i++) { const d = document.createElement('div'); d.innerText=i; col.appendChild(d); }
+                    col.style.transform = `translateY(-${c}em)`; w.appendChild(col); cont.appendChild(w);
+                });
+            } else {
+                str.split('').forEach((c, i) => {
+                    const col = cont.children[i].firstElementChild;
+                    if(col.dataset.c !== c) { col.dataset.c = c; col.style.transform = `translateY(-${c}em)`; }
+                });
+            }
+        }
+        let baseSS = 0; procProducts.forEach(p => baseSS += p.ss);
+        function triggerTickerAnimation() { if(!document.getElementById('demo-ticker-container').hasChildNodes()) updateTicker(baseSS); }
+        document.getElementById('demo-ticker-trigger').addEventListener('click', () => updateTicker(baseSS * (1.2 + Math.random()*0.5)));
+    </script>
+</body>
+</html>
