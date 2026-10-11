@@ -35,7 +35,7 @@ interface ProductShowcaseProps {
   zScore: number;
   onNavigateToTab: (tab: 'overview' | 'inventory' | 'demand' | 'scenario') => void;
   onSimulateInCrisis: (product: ProductWithComputed) => void;
-  onOpenFormulasModal: () => void;
+  onOpenFormulasModal?: () => void;
 }
 
 export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
@@ -180,71 +180,63 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
         </div>
 
         {/* Main Kinetic Headline */}
-        <h1 className="hero-heading max-w-4xl font-serif text-5xl sm:text-6xl lg:text-7xl font-light text-ink tracking-tight leading-[1.08] select-none">
+        <h1 className="hero-heading max-w-4xl font-sans text-5xl sm:text-6xl lg:text-7xl font-bold text-slate-900 tracking-tight leading-[1.08] select-none">
           Know Exactly When to Reorder <br />
-          <span className="italic text-accent font-normal">and Exactly How Much.</span>
+          <span className="text-accent">and Exactly How Much.</span>
         </h1>
 
         {/* Product Subtitle */}
-        <p className="hero-desc max-w-2xl text-muted text-base sm:text-lg font-sans mt-6 leading-relaxed">
-          Ordering late causes stockouts and lost customers; ordering early ties up capital and risks perishable spoilage.
-          StockSense computes real-time stochastic reorder thresholds and optimal batch sizes—protecting against supplier delays and demand shocks.
+        <p className="hero-desc max-w-2xl text-slate-600 text-base sm:text-lg font-sans mt-6 leading-relaxed">
+          Ordering late causes stockouts and lost revenue; ordering early ties up cash and causes perishable spoilage.
+          StockSense automatically computes exact restock alerts and purchase orders—protecting your store from vendor delays and sudden demand surges.
         </p>
 
-        {/* CTA Buttons & Formulas Modal Trigger */}
+        {/* CTA Buttons */}
         <div className="hero-actions flex flex-wrap items-center justify-center gap-4 mt-8">
           <button
             onClick={() => {
               onNavigateToTab('overview');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="px-6 py-3.5 rounded-xl bg-ink text-surface text-sm font-mono font-medium hover:bg-accent transition-all duration-300 flex items-center gap-2.5 shadow-md cursor-pointer hover:shadow-lg hover:-translate-y-0.5"
+            className="px-6 py-3.5 rounded-xl bg-slate-900 text-white text-sm font-sans font-bold hover:bg-accent transition-all duration-300 flex items-center gap-2.5 shadow-md cursor-pointer hover:shadow-lg hover:-translate-y-0.5"
           >
-            <span>Launch Dashboard</span>
+            <span>Launch Store Dashboard</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 
           <button
             onClick={scrollToFirstFeature}
-            className="px-5 py-3.5 rounded-xl bg-surface border border-border text-ink text-sm font-mono font-medium hover:bg-stone transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-xs hover:-translate-y-0.5"
+            className="px-5 py-3.5 rounded-xl bg-surface border border-border text-slate-900 text-sm font-sans font-bold hover:bg-stone transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-xs hover:-translate-y-0.5"
           >
             <span>Explore Tour</span>
             <ChevronDown className="w-4 h-4 text-accent" />
           </button>
-
-          <button
-            onClick={onOpenFormulasModal}
-            className="px-5 py-3.5 rounded-xl bg-stone/50 border border-border text-muted hover:text-ink text-sm font-mono font-medium hover:bg-stone transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-xs hover:-translate-y-0.5"
-          >
-            <Calculator className="w-4 h-4 text-ochre" />
-            <span>Formulas & Math</span>
-          </button>
         </div>
 
-        {/* Fleet KPI Ribbon with Statistical Factor Tag */}
-        <div className="hero-kpis grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl w-full mt-14 font-mono text-left">
+        {/* Fleet KPI Ribbon with Stock Protection Tag */}
+        <div className="hero-kpis grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl w-full mt-14 font-sans text-left">
           <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
-            <div className="text-[10px] uppercase text-muted tracking-wider">Monitored Catalog</div>
-            <div className="text-2xl font-light text-ink mt-1">8 Dark Store SKUs</div>
-            <div className="text-[11px] text-moss mt-0.5 font-sans">Dairy, Staples, Snacks, FMCG</div>
+            <div className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Monitored Catalog</div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">8 Dark Store SKUs</div>
+            <div className="text-[11px] text-moss mt-0.5 font-sans font-medium">Dairy, Staples, Snacks, FMCG</div>
           </div>
 
           <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
-            <div className="text-[10px] uppercase text-muted tracking-wider">Service Level & Factor</div>
-            <div className="text-2xl font-light text-accent mt-1">{(serviceLevel * 100).toFixed(0)}% Target SLA</div>
-            <div className="text-[11px] text-muted mt-0.5 font-mono">Statistical Factor Z = {zScore.toFixed(3)}</div>
+            <div className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Stock Protection Level</div>
+            <div className="text-2xl font-bold text-accent mt-1">{(serviceLevel * 100).toFixed(0)}% Availability</div>
+            <div className="text-[11px] text-slate-500 mt-0.5 font-sans font-medium">High Stock Security</div>
           </div>
 
           <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
-            <div className="text-[10px] uppercase text-muted tracking-wider">Average Shelf Cover</div>
-            <div className="text-2xl font-light text-ink mt-1">26.8 Days</div>
-            <div className="text-[11px] text-muted mt-0.5 font-sans">Perishable-safe buffer</div>
+            <div className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Average Shelf Cover</div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">26.8 Days</div>
+            <div className="text-[11px] text-slate-500 mt-0.5 font-sans font-medium">Safe buffer runway</div>
           </div>
 
           <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
-            <div className="text-[10px] uppercase text-muted tracking-wider">AI Anomaly Shield</div>
-            <div className="text-2xl font-light text-moss mt-1">Bounded Clamping</div>
-            <div className="text-[11px] text-muted mt-0.5 font-sans">Noise isolated from variance</div>
+            <div className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">Automated Alerts</div>
+            <div className="text-2xl font-bold text-moss mt-1">Active Protection</div>
+            <div className="text-[11px] text-moss mt-0.5 font-sans font-medium">Real-time alerts</div>
           </div>
         </div>
 
@@ -254,18 +246,18 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-moss" />
               <div>
-                <span className="font-mono text-xs font-semibold text-ink">
+                <span className="font-sans text-xs font-bold text-slate-900">
                   {defaultProduct?.sku} • {defaultProduct?.name}
                 </span>
-                <div className="text-[11px] text-muted font-sans">
+                <div className="text-[11px] text-slate-500 font-sans">
                   Category: {defaultProduct?.category} • Shelf Life: {defaultProduct?.perishabilityDays} Days
                 </div>
               </div>
             </div>
-            <div className="font-mono text-xs text-muted flex items-center gap-2">
-              <span>Policy:</span>
-              <span className="px-2.5 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 font-medium text-[11px]">
-                SLA: {(serviceLevel * 100).toFixed(0)}% (Z={zScore.toFixed(2)})
+            <div className="font-sans text-xs text-slate-500 flex items-center gap-2">
+              <span>Protection:</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20 font-bold text-[11px]">
+                {(serviceLevel * 100).toFixed(0)}% High Availability
               </span>
             </div>
           </div>
@@ -314,27 +306,27 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
               <span>Challenge Pillar 01 • Reorder Timing & Quantity</span>
             </div>
 
-            <h2 className="feature-anim-item font-serif text-3xl sm:text-4xl font-light text-ink tracking-tight leading-tight">
-              Real Inventory Math <br />
-              <span className="italic text-accent font-normal">for Demand & Lead-Time Variance.</span>
+            <h2 className="feature-anim-item font-sans text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight leading-tight">
+              Automatic Restock Precision. <br />
+              <span className="text-accent">Built for Store Demand & Supplier Delays.</span>
             </h2>
 
-            <p className="feature-anim-item text-muted text-sm sm:text-base font-sans leading-relaxed">
-              Traditional dark store spreadsheets set a static reorder level once and never revisit it. When festival promotions hit or dairy suppliers are delayed by 2 days, stockouts strike. StockSense protects against variance in both daily demand and vendor lead time.
+            <p className="feature-anim-item text-slate-600 text-sm sm:text-base font-sans leading-relaxed">
+              Traditional store spreadsheets set a static reorder level once and never revisit it. When festival promotions hit or dairy suppliers are delayed by 2 days, shelves go empty. StockSense dynamically protects against both daily sales swings and supplier delivery lags.
             </p>
 
-            <div className="feature-anim-item space-y-3 font-mono text-xs">
-              <div className="flex items-center gap-2.5 text-ink">
+            <div className="feature-anim-item space-y-3 font-sans text-xs">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-moss shrink-0" />
-                <span>Dual stochastic variance hedging: SS = Z × √(L̄·σ_d² + d̄²·σ_L²)</span>
+                <span>Automatic safety buffer protects against sudden customer demand surges</span>
               </div>
-              <div className="flex items-center gap-2.5 text-ink">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-moss shrink-0" />
-                <span>Cost-balanced Economic Order Quantity (EOQ) prevents over-ordering perishables</span>
+                <span>Optimal reorder quantities prevent overstocking and reduce perishable waste</span>
               </div>
-              <div className="flex items-center gap-2.5 text-ink">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-moss shrink-0" />
-                <span>Displays user-selected target service level and statistical factor Z on every trigger</span>
+                <span>Guarantees high product availability while avoiding dead capital on shelves</span>
               </div>
             </div>
 
@@ -472,8 +464,8 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
                     ? 'Shelf Depletion Warning: Approaching Threshold'
                     : 'Inventory Position Optimal'}
                 </span>
-                <span className="text-[10px] text-muted">
-                  SLA: {(serviceLevel * 100).toFixed(0)}% (Z={zScore.toFixed(3)})
+                <span className="text-[10px] text-slate-500 font-bold">
+                  Protection: {(serviceLevel * 100).toFixed(0)}%
                 </span>
               </div>
               <p className="text-[11px] font-sans text-ink leading-relaxed">
@@ -500,27 +492,27 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
               <span>Challenge Pillar 02 • Unusual Demand Classification</span>
             </div>
 
-            <h2 className="feature-anim-item font-serif text-3xl sm:text-4xl font-light text-ink tracking-tight leading-tight">
+            <h2 className="feature-anim-item font-sans text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight leading-tight">
               Keep Spikes Visible. <br />
-              <span className="italic text-anomaly font-normal">Classify & Bound Adjustments.</span>
+              <span className="text-anomaly">Smart Sales Filter & Protection.</span>
             </h2>
 
-            <p className="feature-anim-item text-muted text-sm sm:text-base font-sans leading-relaxed">
-              Sales history contains unusual values: one-off promotional flash sales, barcode scanning duplications, or unrecorded stockout lost sales. If left unchecked, these distort demand forecasts and inflate safety buffers by 50%+.
+            <p className="feature-anim-item text-slate-600 text-sm sm:text-base font-sans leading-relaxed">
+              Sales history often contains unusual values: one-off flash promotions, festival bulk buys, or barcode double-scans. If left unmonitored, these distort future purchasing and cause costly over-ordering.
             </p>
 
-            <div className="feature-anim-item space-y-3 font-mono text-xs">
-              <div className="flex items-center gap-2.5 text-ink">
+            <div className="feature-anim-item space-y-3 font-sans text-xs">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-anomaly shrink-0" />
-                <span>Unusual values kept clearly visible with distinct classification labels</span>
+                <span>Unusual sales spikes kept visible with clear, automatic tags</span>
               </div>
-              <div className="flex items-center gap-2.5 text-ink">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-anomaly shrink-0" />
-                <span>AI classifies cause (e.g. Promotion, Data Error, Unknown, Censored Stockout)</span>
+                <span>Identifies root cause (Promotion, Data Error, Stockout, Festival Surge)</span>
               </div>
-              <div className="flex items-center gap-2.5 text-ink">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-anomaly shrink-0" />
-                <span>All proposed adjustments stay strictly within a defined 3σ bounded clamp range</span>
+                <span>Smart limits prevent one-off sales spikes from inflating routine orders</span>
               </div>
             </div>
 
@@ -650,35 +642,35 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
               <span>Challenge Pillar 03 • Pre-Flight Crisis Simulator</span>
             </div>
 
-            <h2 className="feature-anim-item font-serif text-3xl sm:text-4xl font-light text-ink tracking-tight leading-tight">
-              Side-by-Side Stress Lab. <br />
-              <span className="italic text-accent font-normal">Demand Surges & Supplier Delays.</span>
+            <h2 className="feature-anim-item font-sans text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight leading-tight">
+              Pre-Flight Crisis Simulator. <br />
+              <span className="text-accent">Test Surges & Supplier Delays in Advance.</span>
             </h2>
 
-            <p className="feature-anim-item text-muted text-sm sm:text-base font-sans leading-relaxed">
-              Before a regional monsoon hits or a dairy distributor strikes, simulate the shock in advance.
-              See the revised recommendation, expected carrying cost, and stockout risk displayed beside the previous baseline.
+            <p className="feature-anim-item text-slate-600 text-sm sm:text-base font-sans leading-relaxed">
+              Before monsoon logistics disruptions hit or milk suppliers go on strike, simulate the crisis in seconds.
+              Instantly see your buffer recommendations and extra stock requirements before stockouts happen.
             </p>
 
-            <div className="feature-anim-item space-y-3 font-mono text-xs">
-              <div className="flex items-center gap-2.5 text-ink">
+            <div className="feature-anim-item space-y-3 font-sans text-xs">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-moss shrink-0" />
-                <span>Side-by-side comparison: Baseline Policy vs Revised Stressed Policy</span>
+                <span>Side-by-side comparison: Normal Operations vs Stressed Crisis Mode</span>
               </div>
-              <div className="flex items-center gap-2.5 text-ink">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-moss shrink-0" />
-                <span>Multi-variable shock testing: Demand Surge (1.0x-2.5x) × Supplier Delay (0-14d)</span>
+                <span>Simulate sudden sales surge (1.0x to 2.5x) and vendor delays (up to 14 days)</span>
               </div>
-              <div className="flex items-center gap-2.5 text-ink">
+              <div className="flex items-center gap-2.5 text-slate-900 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-moss shrink-0" />
-                <span>Revised annual carrying cost and unmitigated stockout risk percentage shown</span>
+                <span>View required capital adjustments and stockout risk mitigation instantly</span>
               </div>
             </div>
 
             <div className="feature-anim-item pt-2">
               <button
                 onClick={() => defaultProduct && onSimulateInCrisis(defaultProduct)}
-                className="inline-flex items-center gap-2 text-xs font-mono font-medium text-accent hover:text-ink transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 text-xs font-sans font-bold text-accent hover:text-slate-900 transition-colors cursor-pointer"
               >
                 <span>Launch Full Crisis Simulation Lab</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -690,15 +682,15 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
           <div className="feature-anim-item lg:col-span-7 bg-stone/70 rounded-2xl border border-border p-6 sm:p-8 space-y-6">
             <div className="pb-4 border-b border-border flex justify-between items-center">
               <div>
-                <div className="font-mono text-xs font-semibold text-ink">
+                <div className="font-sans text-xs font-bold text-slate-900">
                   SIDE-BY-SIDE REPLENISHMENT SHOCK MATRIX
                 </div>
-                <div className="text-[11px] text-muted font-sans mt-0.5">
+                <div className="text-[11px] text-slate-500 font-sans mt-0.5">
                   Simulate supplier delivery bottleneck & viral order surge
                 </div>
               </div>
-              <span className="text-[10px] font-mono text-accent bg-accent/10 px-2.5 py-1 rounded-full font-semibold">
-                Z = {zScore.toFixed(3)}
+              <span className="text-[10px] font-sans text-accent bg-accent/10 px-2.5 py-1 rounded-full font-bold">
+                Protection: {(serviceLevel * 100).toFixed(0)}%
               </span>
             </div>
 
@@ -817,45 +809,45 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
                 <Scale className="w-3.5 h-3.5 text-accent" />
                 <span>Challenge Pillar 04 • Holdout Empirical Verification</span>
               </div>
-              <h2 className="font-serif text-3xl sm:text-4xl font-light text-ink tracking-tight">
+              <h2 className="font-sans text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
                 Holdout Validation: Measure Rather Than Assume.
               </h2>
-              <p className="text-muted text-sm sm:text-base font-sans mt-1 max-w-2xl">
-                Compare StockSense’s de-noised forecast against a naive 7-day moving average on an unseen 90-day holdout period.
+              <p className="text-slate-600 text-sm sm:text-base font-sans mt-1 max-w-2xl">
+                Compare StockSense’s clean sales forecast against a standard store average on an unseen 90-day verification test.
               </p>
             </div>
 
             <button
               onClick={() => onNavigateToTab('demand')}
-              className="px-4 py-2 bg-ink text-surface rounded-xl text-xs font-mono hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+              className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-sans font-bold hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer self-start sm:self-auto"
             >
-              <span>View Holdout Charts</span>
+              <span>View Verification Charts</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans text-left">
             <div className="p-6 rounded-2xl bg-stone/70 border border-border space-y-2">
-              <div className="text-[10px] uppercase text-muted">Forecast Accuracy Improvement</div>
-              <div className="text-3xl font-light text-moss mt-1">+75.2% Gain</div>
-              <p className="text-muted text-xs font-sans mt-2 leading-relaxed">
-                Mean Absolute Error (MAE) dropped from 8.4 units on the naive baseline down to 2.1 units with StockSense anomaly clamping.
+              <div className="text-[10px] uppercase text-slate-500 font-bold">Forecast Accuracy Improvement</div>
+              <div className="text-3xl font-bold text-moss mt-1">+75.2% Gain</div>
+              <p className="text-slate-600 text-xs font-sans mt-2 leading-relaxed">
+                Sales forecasting error dropped by more than 75% when filtering out one-off promotions and duplicate scans.
               </p>
             </div>
 
             <div className="p-6 rounded-2xl bg-stone/70 border border-border space-y-2">
-              <div className="text-[10px] uppercase text-muted">Stockout Incidents Averted</div>
-              <div className="text-3xl font-light text-accent mt-1">0 vs 6 Stockouts</div>
-              <p className="text-muted text-xs font-sans mt-2 leading-relaxed">
-                During 90 unseen test days, the naive model stocked out 6 times due to lead time delays, while StockSense sustained 100% order fulfillments.
+              <div className="text-[10px] uppercase text-slate-500 font-bold">Stockout Incidents Averted</div>
+              <div className="text-3xl font-bold text-accent mt-1">0 vs 6 Stockouts</div>
+              <p className="text-slate-600 text-xs font-sans mt-2 leading-relaxed">
+                During 90 test days, standard spreadsheets ran out of stock 6 times, while StockSense sustained 100% customer fulfillment.
               </p>
             </div>
 
             <div className="p-6 rounded-2xl bg-stone/70 border border-border space-y-2">
-              <div className="text-[10px] uppercase text-muted">Wasted Working Capital Prevented</div>
-              <div className="text-3xl font-light text-ink mt-1">$2,720 Saved</div>
-              <p className="text-muted text-xs font-sans mt-2 leading-relaxed">
-                Prevents panic over-ordering caused by unverified flash surges, preserving dark store shelf space for fast-turning inventory.
+              <div className="text-[10px] uppercase text-slate-500 font-bold">Wasted Working Capital Prevented</div>
+              <div className="text-3xl font-bold text-slate-900 mt-1">$2,720 Saved</div>
+              <p className="text-slate-600 text-xs font-sans mt-2 leading-relaxed">
+                Prevents panic over-ordering caused by false demand spikes, preserving dark store shelf space for fast-turning goods.
               </p>
             </div>
           </div>
@@ -866,18 +858,18 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
           FINAL CALL TO ACTION: Enter Enterprise Dark Store Operations
           ========================================================================= */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6">
-        <div className="p-8 sm:p-12 rounded-3xl bg-ink text-surface shadow-2xl text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface/10 border border-surface/20 text-xs font-mono text-stone/80 mb-2">
+        <div className="p-8 sm:p-12 rounded-3xl bg-slate-900 text-white shadow-2xl text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-sans font-bold text-white mb-2">
             <PackageCheck className="w-3.5 h-3.5 text-moss" />
-            <span>Ready for Dark Store & Kirana Deployment</span>
+            <span>Ready for Dark Store & Kirana Operations</span>
           </div>
 
-          <h2 className="font-serif text-3xl sm:text-5xl font-light tracking-tight">
-            Stop Guessing. Replenish With Mathematical Certainty.
+          <h2 className="font-sans text-3xl sm:text-5xl font-bold tracking-tight text-white">
+            Stop Guessing. Replenish With Absolute Certainty.
           </h2>
 
-          <p className="text-stone/70 text-sm sm:text-base font-sans max-w-xl mx-auto leading-relaxed">
-            Protect your dark store against supplier delays, avoid dead capital in perishable inventory, and automate purchase orders right on time.
+          <p className="text-white/80 text-sm sm:text-base font-sans max-w-xl mx-auto leading-relaxed">
+            Protect your store against supplier delays, avoid dead capital in perishable inventory, and automate purchase orders right on time.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -886,18 +878,10 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
                 onNavigateToTab('overview');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="px-6 py-3.5 rounded-xl bg-surface text-ink text-sm font-mono font-medium hover:bg-accent hover:text-surface transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-md hover:shadow-lg"
+              className="px-6 py-3.5 rounded-xl bg-white text-slate-900 text-sm font-sans font-bold hover:bg-accent hover:text-white transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-md hover:shadow-lg"
             >
               <span>Enter StockSense Dashboard</span>
               <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={onOpenFormulasModal}
-              className="px-6 py-3.5 rounded-xl border border-stone/30 text-surface text-sm font-mono font-medium hover:bg-surface/10 transition-all duration-300 flex items-center gap-2 cursor-pointer"
-            >
-              <Calculator className="w-4 h-4 text-accent" />
-              <span>Inspect Formulas & Model</span>
             </button>
           </div>
         </div>

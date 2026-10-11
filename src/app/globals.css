@@ -4,45 +4,53 @@
   --color-stone: #F3F1ED;
   --color-stone-dark: #E8E5DF;
   --color-surface: #FAF9F7;
-  --color-ink: #1C1B19;
-  --color-muted: #6D6A64;
+  --color-ink: #0F172A;
+  --color-muted: #334155;
   --color-border: #DAD6CE;
   --color-accent: #0F5C5C;
   --color-accent-light: #187D7D;
   --color-accent-dark: #0A3D3D;
 
   /* Status Colors */
-  --color-moss: #4F7A4A;
-  --color-ochre: #B7791F;
-  --color-brick: #B23A2E;
-  --color-slate: #3F6C8F;
-  --color-anomaly: #7A5A8C;
+  --color-moss: #2E6B34;
+  --color-ochre: #B45309;
+  --color-brick: #BE123C;
+  --color-slate: #1E293B;
+  --color-anomaly: #6B21A8;
 
-  --font-serif: var(--font-fraunces), Georgia, serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), Menlo, Monaco, monospace;
+  --font-serif: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 @theme {
   --color-stone: #F3F1ED;
   --color-stone-dark: #E8E5DF;
   --color-surface: #FAF9F7;
-  --color-ink: #1C1B19;
-  --color-muted: #6D6A64;
+  --color-ink: #0F172A;
+  --color-muted: #334155;
   --color-border: #DAD6CE;
   --color-accent: #0F5C5C;
   --color-accent-light: #187D7D;
   --color-accent-dark: #0A3D3D;
 
-  --color-moss: #4F7A4A;
-  --color-ochre: #B7791F;
-  --color-brick: #B23A2E;
-  --color-slate: #3F6C8F;
-  --color-anomaly: #7A5A8C;
+  --color-moss: #2E6B34;
+  --color-ochre: #B45309;
+  --color-brick: #BE123C;
+  --color-slate: #1E293B;
+  --color-anomaly: #6B21A8;
 
-  --font-serif: var(--font-fraunces), Georgia, serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), Menlo, Monaco, monospace;
+  --font-serif: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Base typography: Bold dark headings and crisp readable body */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 700 !important;
+  color: #0F172A !important;
+  letter-spacing: -0.02em;
 }
 
 /* Hide default scrollbar while maintaining keyboard and wheel interaction */
@@ -56,7 +64,8 @@
 
 body {
   background-color: var(--color-stone);
-  color: var(--color-ink);
+  color: #0F172A;
+  font-family: var(--font-sans);
   overflow-x: hidden;
   margin: 0;
   padding: 0;

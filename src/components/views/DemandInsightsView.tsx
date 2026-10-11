@@ -132,35 +132,35 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Top Bar with Sub-Navigation */}
-      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-accent font-semibold uppercase tracking-wider">
-              StockSense Database Schema Integration
+            <span className="px-2 py-0.5 rounded text-[10px] bg-stone border border-border text-accent font-bold uppercase tracking-wider">
+              Sales & Demand Intelligence
             </span>
           </div>
-          <h3 className="font-serif text-2xl font-light text-ink">
-            Demand Insights & Statistical Verification
+          <h3 className="font-sans text-2xl font-bold text-slate-900 tracking-tight">
+            Demand Trends & Sales Insights
           </h3>
-          <p className="text-muted text-xs font-sans mt-0.5">
-            Audit daily observations in <span className="font-mono text-ink">demand_records</span> (Table 2), review AI classifications in <span className="font-mono text-ink">anomaly_reviews</span> (Table 3), and verify holdout accuracy in <span className="font-mono text-ink">forecast_runs</span> (Table 4).
+          <p className="text-slate-600 text-xs font-sans mt-0.5">
+            Track daily sales observations, review AI classification of demand spikes, and verify forecasting accuracy.
           </p>
         </div>
 
-        <div className="flex items-center gap-1 bg-stone p-1 rounded-xl border border-border text-xs font-mono">
+        <div className="flex items-center gap-1 bg-stone p-1 rounded-xl border border-border text-xs font-sans">
           {[
             { id: 'demand', label: 'Daily History & Records' },
             { id: 'import', label: 'CSV Import Wizard' },
-            { id: 'anomalies', label: 'Anomaly Audit Log' },
-            { id: 'forecast', label: 'Holdout Prover' },
+            { id: 'anomalies', label: 'Unusual Sales Log' },
+            { id: 'forecast', label: 'Verification Lab' },
           ].map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveSubTab(t.id as any)}
-              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer font-bold ${
                 activeSubTab === t.id
-                  ? 'bg-ink text-surface font-semibold shadow-xs'
-                  : 'text-muted hover:text-ink'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {t.label}
@@ -271,25 +271,25 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
               </ResponsiveContainer>
             </div>
 
-            <div className="pt-4 border-t border-border flex flex-wrap justify-between items-center text-xs font-mono text-muted">
-              <span>Mean Demand (d̄): {selectedProduct.metrics.avgDemand.toFixed(1)} {selectedProduct.unitOfMeasure}/day</span>
-              <span>Demand StdDev (σd): {selectedProduct.metrics.demandStdDev.toFixed(1)}</span>
-              <span className="text-moss">Cleaned baseline shielded from spike contamination</span>
+            <div className="pt-4 border-t border-border flex flex-wrap justify-between items-center text-xs font-sans text-slate-600 font-medium">
+              <span>Average Daily Sales: {selectedProduct.metrics.avgDemand.toFixed(1)} {selectedProduct.unitOfMeasure}/day</span>
+              <span>Sales Variation: ±{selectedProduct.metrics.demandStdDev.toFixed(1)}</span>
+              <span className="text-moss font-bold">Cleaned baseline shielded from spike contamination</span>
             </div>
           </div>
 
-          {/* TABLE 2: demand_records Relational Table */}
+          {/* TABLE: demand_records Ledger */}
           <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-sans gap-4">
               <div>
-                <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-                  Core Relational Table • demand_records (Table 2)
+                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                  Store Sales History • Observation Ledger
                 </span>
-                <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
+                <h4 className="font-sans text-xl font-bold text-slate-900 mt-0.5">
                   Daily Demand Observation Ledger
                 </h4>
-                <p className="text-muted text-xs font-sans mt-0.5">
-                  Stores daily demand observations with stockout flags (censored demand) and promotional markers.
+                <p className="text-slate-600 text-xs font-sans mt-0.5">
+                  Stores daily sales observations, stockout events, and promotional surge markers.
                 </p>
               </div>
 
@@ -358,15 +358,15 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
             <div className="overflow-x-auto">
               <table className="w-full text-left font-mono text-xs">
                 <thead>
-                  <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider bg-stone/30">
-                    <th className="py-3 px-3">Record ID</th>
+                  <tr className="border-b border-border text-slate-500 uppercase text-[10px] tracking-wider bg-stone/50 font-bold">
+                    <th className="py-3 px-3">Log ID</th>
                     <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">SKU & Item</th>
                     <th className="py-3 px-3">Units Sold</th>
-                    <th className="py-3 px-3">Stockout Flag (Censored)</th>
+                    <th className="py-3 px-3">Stockout Event</th>
                     <th className="py-3 px-3">Promotion Flag</th>
-                    <th className="py-3 px-3">Source Import ID</th>
-                    <th className="py-3 px-3">Contextual Observation Notes</th>
+                    <th className="py-3 px-3">Import Batch</th>
+                    <th className="py-3 px-3">Store Notes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">

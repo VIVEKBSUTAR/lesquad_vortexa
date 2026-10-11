@@ -42,10 +42,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   isLiveBackend = false,
 }) => {
   const serviceLevelOptions = [
-    { value: 0.90, label: '90%', z: 'Z=1.282' },
-    { value: 0.95, label: '95%', z: 'Z=1.645' },
-    { value: 0.98, label: '98%', z: 'Z=2.054' },
-    { value: 0.99, label: '99%', z: 'Z=2.326' },
+    { value: 0.90, label: '90%' },
+    { value: 0.95, label: '95% (High)' },
+    { value: 0.98, label: '98%' },
+    { value: 0.99, label: '99% (Max)' },
   ];
 
   const currentOption =
@@ -55,8 +55,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   const statusConfig = {
     not_imported: {
       label: 'Not Imported',
-      color: 'bg-stone text-muted border-border',
-      dot: 'bg-muted',
+      color: 'bg-stone text-slate-600 border-border',
+      dot: 'bg-slate-400',
     },
     imported: {
       label: 'Imported',
@@ -64,7 +64,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       dot: 'bg-accent',
     },
     analysis_ready: {
-      label: 'Analysis Ready',
+      label: 'Live & Ready',
       color: 'bg-moss/10 text-moss border-moss/30',
       dot: 'bg-moss',
     },
@@ -81,7 +81,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     <header className="sticky top-0 z-40 w-full h-16 bg-surface/95 backdrop-blur-md border-b border-border px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 transition-all select-none">
       {/* Left: Brand + Breadcrumb */}
       <div className="flex items-center gap-4">
-        {/* Brand Wordmark (clicking in dashboard returns to tour, clicking in tour scrolls to top) */}
+        {/* Brand Wordmark */}
         <button
           onClick={() => {
             if (isTour) {
@@ -90,80 +90,62 @@ export const TopBar: React.FC<TopBarProps> = ({
               onSelectTab('product');
             }
           }}
-          className="text-left font-serif text-2xl tracking-tight text-ink font-light select-none hover:text-accent transition-colors cursor-pointer flex items-center gap-2"
+          className="text-left font-bold text-2xl tracking-tight text-slate-900 select-none hover:text-accent transition-colors cursor-pointer flex items-center gap-2"
           title={isTour ? 'Scroll to top' : 'Return to Product Showcase Tour'}
         >
           <span>StockSense</span>
         </button>
 
         {isTour ? (
-          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border font-mono text-xs text-muted">
-            <span className="w-1.5 h-1.5 rounded-full bg-moss animate-pulse" />
-            <span>Dark Store & Kirana Operations Tour</span>
+          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-xs font-medium text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-moss animate-pulse" />
+            <span className="font-semibold text-slate-800">Store Replenishment Engine</span>
           </div>
         ) : (
           <>
-            <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border font-mono text-xs text-muted">
-              <span className="text-[10px] uppercase tracking-wider text-muted/70">Workspace:</span>
-              <span className="font-semibold text-ink px-2 py-0.5 rounded bg-stone border border-border">
+            <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-xs text-slate-600">
+              <span className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Store:</span>
+              <span className="font-bold text-slate-900 px-2.5 py-0.5 rounded bg-stone border border-border">
                 {workspaceName}
               </span>
             </div>
 
             {/* Data Status Indicator */}
             <div
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono font-medium ${statusConfig.color}`}
-              title="Data Ingestion & Analytical Status"
+              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${statusConfig.color}`}
+              title="Store Inventory Status"
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot} animate-pulse`} />
+              <span className={`w-2 h-2 rounded-full ${statusConfig.dot} animate-pulse`} />
               <span>{statusConfig.label}</span>
-            </div>
-
-            {/* Explicit Demo Data Label */}
-            <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-stone/80 border border-border text-muted">
-              <span className="w-1.5 h-1.5 rounded-full bg-ochre" />
-              <span>Demo Data: Seeded Dark Store Fleet</span>
             </div>
           </>
         )}
       </div>
 
-      {/* Right Controls: SLA, Formulas & Primary Action */}
+      {/* Right Controls: Stock Reliability & Action */}
       <div className="flex items-center gap-3">
-        {/* Global SLA Selector */}
-        <div className="hidden sm:flex items-center gap-1 bg-stone/50 border border-border px-2 py-1 rounded-xl font-mono text-xs">
-          <span className="text-[10px] uppercase text-muted hidden md:inline">Target SLA:</span>
-          <div className="flex items-center gap-0.5">
+        {/* Stock Reliability Selector */}
+        <div className="hidden sm:flex items-center gap-1.5 bg-stone/70 border border-border px-2.5 py-1 rounded-xl text-xs">
+          <span className="text-[11px] uppercase text-slate-600 font-bold hidden md:inline">
+            Stock Protection:
+          </span>
+          <div className="flex items-center gap-1">
             {serviceLevelOptions.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => onSelectServiceLevel(opt.value)}
-                className={`px-2 py-0.5 rounded text-[11px] transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded text-xs transition-all cursor-pointer font-medium ${
                   Math.abs(serviceLevel - opt.value) < 0.005
-                    ? 'bg-accent text-surface font-semibold shadow-xs'
-                    : 'text-muted hover:text-ink'
+                    ? 'bg-slate-900 text-white font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title={`Target Service Level: ${(opt.value * 100).toFixed(0)}%, Factor ${opt.z}`}
+                title={`Target Reliability: ${(opt.value * 100).toFixed(0)}%`}
               >
                 {opt.label}
               </button>
             ))}
           </div>
-          <span className="text-[10px] text-accent font-semibold px-1 hidden xl:inline">
-            ({currentOption.z})
-          </span>
         </div>
-
-        {/* Formulas Button in Tour mode */}
-        {isTour && (
-          <button
-            onClick={onOpenFormulasModal}
-            className="hidden sm:flex px-3 py-1.5 rounded-xl border border-border bg-stone/50 hover:bg-stone text-ink text-xs font-mono items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Calculator className="w-3.5 h-3.5 text-accent" />
-            <span>OR Formulas</span>
-          </button>
-        )}
 
         {/* Primary CTA: In Tour mode -> Launch Dashboard; In Dashboard mode -> Import Data */}
         {isTour ? (

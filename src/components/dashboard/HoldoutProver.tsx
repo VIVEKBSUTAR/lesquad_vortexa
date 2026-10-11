@@ -39,17 +39,17 @@ export const HoldoutProver: React.FC<HoldoutProverProps> = ({ products }) => {
   return (
     <div className="bg-surface rounded-2xl border border-border p-6 lg:p-8 shadow-sm space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border font-sans">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-moss font-semibold mb-1">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-moss font-bold mb-1">
             <Award className="w-3.5 h-3.5" />
-            Table 4 • forecast_runs Benchmark Gate
+            Accuracy & Forecast Verification
           </div>
-          <h3 className="font-serif text-2xl text-ink font-normal">
-            90-Day Hidden Chronological Holdout Prover
+          <h3 className="font-sans text-2xl font-bold text-slate-900 tracking-tight">
+            90-Day Verification Benchmark
           </h3>
-          <p className="text-muted text-xs font-sans mt-0.5">
-            Algorithmic sophistication must mathematically prove itself against a naive moving average on identical unseen holdouts. Zero data leakage.
+          <p className="text-slate-600 text-xs font-sans mt-0.5">
+            Demonstrates that StockSense consistently outperforms simple store averages on unseen past sales.
           </p>
         </div>
 
@@ -191,23 +191,23 @@ export const HoldoutProver: React.FC<HoldoutProverProps> = ({ products }) => {
         </div>
       </div>
 
-      {/* TABLE 4: forecast_runs Benchmark Runs Table */}
+      {/* forecast_runs Benchmark Runs Table */}
       <div className="space-y-4 pt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-sans">
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-              Core Relational Table • forecast_runs (Table 4)
+            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+              Verification History • Benchmark Registry
             </span>
-            <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
+            <h4 className="font-sans text-xl font-bold text-slate-900 mt-0.5">
               Holdout Benchmark Verification Registry
             </h4>
-            <p className="text-muted text-xs font-sans mt-0.5">
-              Empirical holdout comparison on identical date windows. WAPE = Σ|actual - forecast| / Σ|actual|.
+            <p className="text-slate-600 text-xs font-sans mt-0.5">
+              Measured on 90-day unseen store data comparing StockSense against standard 7-day average.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-muted text-[11px] mt-2 sm:mt-0">
+          <div className="flex items-center gap-2 text-slate-500 text-[11px] mt-2 sm:mt-0 font-medium">
             <span>{forecastRuns.length} holdout runs recorded</span>
-            <span className="text-moss flex items-center gap-1">
+            <span className="text-moss flex items-center gap-1 font-bold">
               <CheckCircle className="w-3.5 h-3.5" /> All runs validated
             </span>
           </div>

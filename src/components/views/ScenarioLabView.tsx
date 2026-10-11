@@ -97,18 +97,18 @@ export const ScenarioLabView: React.FC<ScenarioLabViewProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Top Banner */}
-      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-sans">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-ochre font-semibold uppercase tracking-wider">
-              Table 6 • scenario_runs Schema
+            <span className="px-2 py-0.5 rounded text-[10px] bg-stone border border-border text-ochre font-bold uppercase tracking-wider">
+              Resilience & Stress Planning
             </span>
           </div>
-          <h3 className="font-serif text-2xl font-light text-ink">
-            Crisis Simulator & Reproducible Stress Scenarios
+          <h3 className="font-sans text-2xl font-bold text-slate-900 tracking-tight">
+            Stress Scenarios & Crisis Simulator
           </h3>
-          <p className="text-muted text-xs font-sans mt-0.5">
-            Test supply chain shocks with side-by-side comparison of baseline vs stressed recommendations. Persist reproducible random seeds.
+          <p className="text-slate-600 text-xs font-sans mt-0.5">
+            Test supply chain shocks with side-by-side comparison of normal vs stressed recommendations.
           </p>
         </div>
 
@@ -116,17 +116,17 @@ export const ScenarioLabView: React.FC<ScenarioLabViewProps> = ({
           <button
             onClick={handleSaveScenario}
             disabled={isSaving}
-            className="px-4 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors disabled:opacity-40 cursor-pointer flex items-center gap-2 shadow-xs"
+            className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-sans font-bold hover:bg-accent transition-colors disabled:opacity-40 cursor-pointer flex items-center gap-2 shadow-xs"
           >
             <History className="w-3.5 h-3.5" />
-            <span>{isSaving ? 'Recording...' : 'Snapshot Scenario Run'}</span>
+            <span>{isSaving ? 'Recording...' : 'Save Scenario Snapshot'}</span>
           </button>
         </div>
       </div>
 
       {/* Snapshot Success Notification Banner */}
       {saveSuccessMsg && (
-        <div className="p-4 rounded-xl bg-moss/10 border border-moss/30 flex items-center justify-between font-mono text-xs text-moss animate-in fade-in">
+        <div className="p-4 rounded-xl bg-moss/10 border border-moss/30 flex items-center justify-between font-sans text-xs text-moss animate-in fade-in font-medium">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-moss" />
             <span>{saveSuccessMsg}</span>
@@ -147,21 +147,21 @@ export const ScenarioLabView: React.FC<ScenarioLabViewProps> = ({
         onSelectProduct={onSelectProduct}
       />
 
-      {/* TABLE 6: scenario_runs Relational Table */}
+      {/* scenario_runs Table */}
       <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-sans gap-4">
           <div>
-            <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-              Core Relational Table • scenario_runs (Table 6)
+            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+              Simulation History • Stored Scenarios
             </span>
-            <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
-              Reproducible Simulation History Registry
+            <h4 className="font-sans text-xl font-bold text-slate-900 mt-0.5">
+              Stress Scenario Run Registry
             </h4>
-            <p className="text-muted text-xs font-sans mt-0.5">
-              Baseline vs stressed runs evaluated on identical horizons with fixed pseudo-random seeds.
+            <p className="text-slate-600 text-xs font-sans mt-0.5">
+              Normal vs stressed supply shock simulations evaluated for emergency preparation.
             </p>
           </div>
-          <div className="flex items-center gap-3 text-muted text-[11px]">
+          <div className="flex items-center gap-3 text-slate-500 text-[11px] font-medium">
             <span>{scenarioRuns.length} scenario runs logged</span>
             <span className="text-moss flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" /> Seed locked & reproducible
@@ -263,11 +263,11 @@ export const ScenarioLabView: React.FC<ScenarioLabViewProps> = ({
           <div className="bg-surface rounded-2xl border border-border w-full max-w-2xl p-6 lg:p-8 shadow-2xl space-y-6">
             <div className="flex justify-between items-center pb-4 border-b border-border">
               <div>
-                <span className="font-mono text-xs text-ochre uppercase font-semibold">
-                  Table 6 • scenario_runs configuration
+                <span className="font-sans text-xs text-ochre uppercase font-bold">
+                  Saved Scenario Parameters
                 </span>
-                <h4 className="font-serif text-2xl font-light text-ink mt-0.5">
-                  Reproducible Simulation Parameters
+                <h4 className="font-sans text-2xl font-bold text-slate-900 mt-0.5">
+                  Simulation Parameters
                 </h4>
                 <div className="text-muted font-mono text-xs mt-0.5">{inspectScenarioJson.id}</div>
               </div>

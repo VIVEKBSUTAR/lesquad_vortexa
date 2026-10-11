@@ -55,15 +55,15 @@ export const CrisisSimulator: React.FC<CrisisSimulatorProps> = ({
       {/* Header & Product Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-accent font-semibold mb-1">
+          <div className="inline-flex items-center gap-2 text-xs font-sans uppercase tracking-wider text-accent font-bold mb-1">
             <Sliders className="w-3.5 h-3.5" />
-            Deterministic Stress Engine
+            Supply Chain Resilience Planner
           </div>
-          <h3 className="font-serif text-2xl text-ink font-normal">
-            The Crisis Simulator
+          <h3 className="font-sans text-2xl text-slate-900 font-bold tracking-tight">
+            Stress & Crisis Simulator
           </h3>
-          <p className="text-muted text-xs font-sans mt-0.5">
-            Test supply disruption scenarios. Watch the deterministic engine instantly widen the safety band.
+          <p className="text-slate-600 text-xs font-sans mt-0.5">
+            Test supply disruption scenarios. Watch the engine automatically widen your safety stock band.
           </p>
         </div>
 
@@ -182,86 +182,86 @@ export const CrisisSimulator: React.FC<CrisisSimulatorProps> = ({
               }))
             }
           />
-          <div className="flex justify-between text-[10px] font-mono text-muted">
-            <span>85.0% (Z=1.04)</span>
-            <span>95.0% (Z=1.64)</span>
-            <span>99.5% (Z=2.58)</span>
+          <div className="flex justify-between text-[10px] font-sans text-slate-500 font-bold">
+            <span>85% Basic</span>
+            <span>95% High</span>
+            <span>99.5% Maximum</span>
           </div>
         </div>
       </div>
 
       {/* Before & After Metric Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 py-6 border-b border-border">
-        {/* 1. Reorder Point */}
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted">Reorder Point (ROP)</div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 py-6 border-b border-border font-sans">
+        {/* 1. Reorder Trigger Level */}
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
+          <div className="text-[10px] uppercase text-slate-500 font-bold">Order Trigger Level</div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="font-mono text-xl font-semibold text-brick">
+            <span className="text-xl font-bold text-brick">
               {Math.round(simResult.stressed.reorderPoint)}
             </span>
-            <span className="font-mono text-xs text-muted">
+            <span className="text-xs text-slate-500">
               (was {Math.round(simResult.base.reorderPoint)})
             </span>
           </div>
-          <div className="font-mono text-[11px] mt-1 text-brick font-medium">
+          <div className="text-[11px] mt-1 text-brick font-bold">
             +{Math.round(simResult.deltaROP)} units
           </div>
         </div>
 
-        {/* 2. Safety Stock */}
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted">Safety Stock (SS)</div>
+        {/* 2. Safety Buffer */}
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
+          <div className="text-[10px] uppercase text-slate-500 font-bold">Emergency Buffer</div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="font-mono text-xl font-semibold text-moss">
+            <span className="text-xl font-bold text-moss">
               {Math.round(simResult.stressed.safetyStock)}
             </span>
-            <span className="font-mono text-xs text-muted">
+            <span className="text-xs text-slate-500">
               (was {Math.round(simResult.base.safetyStock)})
             </span>
           </div>
-          <div className="font-mono text-[11px] mt-1 text-moss font-medium">
+          <div className="text-[11px] mt-1 text-moss font-bold">
             +{Math.round(simResult.deltaSS)} buffer units
           </div>
         </div>
 
-        {/* 3. Expected Annual Holding Cost */}
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted">Annual Holding Cost</div>
+        {/* 3. Expected Annual Storage Cost */}
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
+          <div className="text-[10px] uppercase text-slate-500 font-bold">Annual Storage Cost</div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="font-mono text-xl font-semibold text-ink">
+            <span className="text-xl font-bold text-slate-900">
               ${Math.round(simResult.stressed.annualHoldingCost).toLocaleString()}
             </span>
           </div>
-          <div className="font-mono text-[11px] mt-1 text-muted">
+          <div className="text-[11px] mt-1 text-slate-600 font-medium">
             +${Math.round(simResult.deltaHoldingCost).toLocaleString()}/yr
           </div>
         </div>
 
         {/* 4. Stockout Risk Probability */}
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted">Stockout Risk</div>
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
+          <div className="text-[10px] uppercase text-slate-500 font-bold">Risk of Stockouts</div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="font-mono text-xl font-semibold text-ochre">
+            <span className="text-xl font-bold text-ochre">
               {simResult.stressed.stockoutRiskPct.toFixed(1)}%
             </span>
-            <span className="font-mono text-xs text-muted">
+            <span className="text-xs text-slate-500">
               (was {simResult.base.stockoutRiskPct.toFixed(1)}%)
             </span>
           </div>
-          <div className="font-mono text-[11px] mt-1 text-muted">
-            Nominal SL: {((params.serviceLevelOverride ?? selectedProduct.targetServiceLevel) * 100).toFixed(0)}%
+          <div className="text-[11px] mt-1 text-slate-600 font-medium">
+            Target Protection: {((params.serviceLevelOverride ?? selectedProduct.targetServiceLevel) * 100).toFixed(0)}%
           </div>
         </div>
 
         {/* 5. Additional Capital Required */}
-        <div className="p-4 rounded-lg bg-stone/70 border border-border col-span-2 lg:col-span-1">
-          <div className="text-[10px] font-mono uppercase text-muted">Working Capital Buffer</div>
+        <div className="p-4 rounded-xl bg-stone/70 border border-border col-span-2 lg:col-span-1">
+          <div className="text-[10px] uppercase text-slate-500 font-bold">Extra Cash Required</div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="font-mono text-xl font-semibold text-accent">
+            <span className="text-xl font-bold text-accent">
               ${Math.round(simResult.additionalCapitalRequired).toLocaleString()}
             </span>
           </div>
-          <div className="font-mono text-[11px] mt-1 text-muted">
+          <div className="text-[11px] mt-1 text-slate-600 font-medium">
             Unit cost: ${selectedProduct.unitCost}
           </div>
         </div>

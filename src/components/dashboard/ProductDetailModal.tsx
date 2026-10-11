@@ -78,116 +78,107 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <span>{statusConfig.label}</span>
               </div>
             </div>
-            <h3 className="font-serif text-2xl lg:text-3xl text-ink font-light">
+            <h3 className="font-sans text-2xl lg:text-3xl text-slate-900 font-bold tracking-tight">
               {product.name}
             </h3>
-            <p className="text-muted text-xs font-sans mt-1 leading-relaxed">
+            <p className="text-slate-600 text-xs font-sans mt-1 leading-relaxed">
               {product.description}
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-muted hover:text-ink hover:bg-stone transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-stone transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Statistical Factor & Target SLA Bar */}
-        <div className="p-4 rounded-2xl bg-stone/70 border border-border flex flex-wrap justify-between items-center gap-3 font-mono text-xs">
+        {/* Target Stock Protection & Shelf Life */}
+        <div className="p-4 rounded-2xl bg-stone/70 border border-border flex flex-wrap justify-between items-center gap-3 font-sans text-xs">
           <div className="flex items-center gap-2">
             <Scale className="w-4 h-4 text-accent" />
-            <span className="text-ink font-semibold">
-              Selected Target SLA: {(product.targetServiceLevel * 100).toFixed(1)}%
+            <span className="text-slate-900 font-bold">
+              Target Protection: {(product.targetServiceLevel * 100).toFixed(0)}% Availability
             </span>
-            <span className="text-accent font-mono bg-surface px-2 py-0.5 rounded border border-border">
-              Statistical Factor Z = {m.zScore.toFixed(3)}
+            <span className="text-accent font-sans bg-surface px-2.5 py-0.5 rounded border border-border font-bold">
+              High Reliability Buffer
             </span>
           </div>
-          <div className="text-muted text-[11px]">
-            Shelf Life: <span className="text-ink font-semibold">{product.perishabilityDays} Days</span>
+          <div className="text-slate-500 text-[11px] font-medium">
+            Shelf Life: <span className="text-slate-900 font-bold">{product.perishabilityDays} Days</span>
           </div>
         </div>
 
         {/* Operational Replenishment Parameters */}
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="font-mono text-xs uppercase tracking-wider text-accent font-semibold flex items-center gap-2">
+            <span className="font-sans text-xs uppercase tracking-wider text-accent font-bold flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" /> Recommended Replenishment Policy
             </span>
-            {onOpenFormulasModal && (
-              <button
-                onClick={onOpenFormulasModal}
-                className="text-xs font-mono text-muted hover:text-accent flex items-center gap-1 cursor-pointer"
-              >
-                <Calculator className="w-3.5 h-3.5" />
-                <span>Formulas & Assumptions</span>
-              </button>
-            )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-sans text-xs">
             <div className="p-4 rounded-2xl bg-surface border border-border">
-              <div className="text-[10px] uppercase text-muted">When to Reorder</div>
-              <div className="text-xl font-semibold text-brick mt-1">
+              <div className="text-[10px] uppercase text-slate-500 font-bold">When to Reorder</div>
+              <div className="text-xl font-bold text-brick mt-1">
                 {Math.round(m.reorderPoint)}{' '}
-                <span className="text-xs font-normal text-muted">units</span>
+                <span className="text-xs font-normal text-slate-500">units</span>
               </div>
-              <div className="text-[10px] text-muted mt-1">Reorder Point (ROP)</div>
+              <div className="text-[10px] text-slate-500 mt-1">Order Trigger Level</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-surface border border-border">
-              <div className="text-[10px] uppercase text-muted">How Much to Reorder</div>
-              <div className="text-xl font-semibold text-accent mt-1">
+              <div className="text-[10px] uppercase text-slate-500 font-bold">How Much to Reorder</div>
+              <div className="text-xl font-bold text-accent mt-1">
                 {Math.round(m.eoq)}{' '}
-                <span className="text-xs font-normal text-muted">units</span>
+                <span className="text-xs font-normal text-slate-500">units</span>
               </div>
-              <div className="text-[10px] text-muted mt-1">Batch Size (EOQ)</div>
+              <div className="text-[10px] text-slate-500 mt-1">Recommended Batch</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-surface border border-border">
-              <div className="text-[10px] uppercase text-muted">Safety Stock Buffer</div>
-              <div className="text-xl font-semibold text-moss mt-1">
+              <div className="text-[10px] uppercase text-slate-500 font-bold">Safety Stock Buffer</div>
+              <div className="text-xl font-bold text-moss mt-1">
                 {Math.round(m.safetyStock)}{' '}
-                <span className="text-xs font-normal text-muted">units</span>
+                <span className="text-xs font-normal text-slate-500">units</span>
               </div>
-              <div className="text-[10px] text-muted mt-1">Dual-variance hedge</div>
+              <div className="text-[10px] text-slate-500 mt-1">Emergency Buffer</div>
             </div>
 
             <div className="p-4 rounded-2xl bg-surface border border-border">
-              <div className="text-[10px] uppercase text-muted">Available Shelf Cover</div>
-              <div className="text-xl font-semibold text-ink mt-1">
+              <div className="text-[10px] uppercase text-slate-500 font-bold">Available Shelf Cover</div>
+              <div className="text-xl font-bold text-slate-900 mt-1">
                 {m.daysOfCover}{' '}
-                <span className="text-xs font-normal text-muted">days</span>
+                <span className="text-xs font-normal text-slate-500">days</span>
               </div>
-              <div className="text-[10px] text-muted mt-1">Daily pace: ~{m.avgDemand.toFixed(1)} u/d</div>
+              <div className="text-[10px] text-slate-500 mt-1">Daily sales: ~{m.avgDemand.toFixed(1)} u/day</div>
             </div>
           </div>
         </div>
 
         {/* Live Inventory Position Audit */}
         <div className="p-4 rounded-2xl bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted mb-3 font-semibold flex justify-between">
-            <span>Inventory Position Formula (On-Hand + On-Order - Backorders)</span>
-            <span className="text-accent font-semibold">Effective: {m.inventoryPosition} u</span>
+          <div className="text-[10px] font-sans uppercase text-slate-500 mb-3 font-bold flex justify-between">
+            <span>Current Stock Status (Shelf + Incoming - Reserved)</span>
+            <span className="text-accent font-bold">Effective Available: {m.inventoryPosition} units</span>
           </div>
-          <div className="grid grid-cols-4 gap-4 font-mono text-xs text-center">
+          <div className="grid grid-cols-4 gap-4 font-sans text-xs text-center">
             <div>
-              <div className="text-muted text-[10px] uppercase">Stock on Shelf</div>
-              <div className="font-semibold text-ink text-base mt-0.5">{product.onHand}</div>
+              <div className="text-slate-500 text-[10px] uppercase font-bold">Stock on Shelf</div>
+              <div className="font-bold text-slate-900 text-base mt-0.5">{product.onHand}</div>
             </div>
             <div>
-              <div className="text-muted text-[10px] uppercase">In Transit (PO)</div>
-              <div className="font-semibold text-slate text-base mt-0.5">+{product.onOrder}</div>
+              <div className="text-slate-500 text-[10px] uppercase font-bold">In Transit (PO)</div>
+              <div className="font-bold text-slate-900 text-base mt-0.5">+{product.onOrder}</div>
             </div>
             <div>
-              <div className="text-muted text-[10px] uppercase">Backorders</div>
-              <div className="font-semibold text-brick text-base mt-0.5">-{product.backorders}</div>
+              <div className="text-slate-500 text-[10px] uppercase font-bold">Reserved / Backorders</div>
+              <div className="font-bold text-brick text-base mt-0.5">-{product.backorders}</div>
             </div>
             <div className="border-l border-border pl-2">
-              <div className="text-muted text-[10px] uppercase">Available Cover</div>
-              <div className="font-semibold text-moss text-base mt-0.5">{m.daysOfCover}d</div>
+              <div className="text-slate-500 text-[10px] uppercase font-bold">Available Cover</div>
+              <div className="font-bold text-moss text-base mt-0.5">{m.daysOfCover}d</div>
             </div>
           </div>
         </div>
@@ -195,18 +186,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Observed Lead Times (10 points) */}
         <div>
           <div className="flex justify-between items-center mb-3">
-            <span className="font-mono text-xs uppercase tracking-wider text-muted font-semibold flex items-center gap-1.5">
+            <span className="font-sans text-xs uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" /> Supplier Delivery Lead Time History (10 Receipts)
             </span>
-            <span className="font-mono text-xs text-muted">
-              Mean: {m.avgLeadTime.toFixed(1)}d (σ_L = {m.leadTimeStdDev.toFixed(1)}d)
+            <span className="font-sans text-xs text-slate-600 font-medium">
+              Average: {m.avgLeadTime.toFixed(1)} days (Variation: ±{m.leadTimeStdDev.toFixed(1)} days)
             </span>
           </div>
-          <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 font-mono text-xs text-center">
+          <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 font-sans text-xs text-center">
             {product.leadTimes.map((lt, idx) => (
               <div key={idx} className="p-2 rounded-xl bg-stone border border-border">
-                <div className="text-[9px] text-muted">PO {idx + 1}</div>
-                <div className="font-semibold text-ink mt-0.5">{lt}d</div>
+                <div className="text-[9px] text-slate-500 font-bold">PO {idx + 1}</div>
+                <div className="font-bold text-slate-900 mt-0.5">{lt}d</div>
               </div>
             ))}
           </div>

@@ -121,330 +121,304 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
       <div className="p-6 border-b border-border flex justify-between items-start bg-stone/20">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="font-mono text-xs font-semibold text-muted bg-stone px-2.5 py-0.5 rounded border border-border">
+            <span className="text-xs font-bold text-slate-700 bg-stone px-2.5 py-0.5 rounded border border-border">
               {product.sku}
             </span>
-            <span className="font-mono text-[11px] text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
+            <span className="text-xs font-semibold text-accent bg-accent/10 px-2.5 py-0.5 rounded border border-accent/20">
               {product.category}
             </span>
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-mono font-medium ${statusBadge.color}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-xs font-bold ${statusBadge.color}`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot}`} />
+              <span className={`w-2 h-2 rounded-full ${statusBadge.dot}`} />
               <span>{statusBadge.label}</span>
             </span>
           </div>
 
-          <h2 className="font-serif text-2xl font-light text-ink">
+          <h2 className="font-bold text-2xl text-slate-900 tracking-tight">
             {product.name}
           </h2>
-          <p className="text-muted text-xs font-sans mt-0.5">
+          <p className="text-slate-600 text-xs mt-1 font-medium">
             Unit: {product.unitOfMeasure || 'piece'} • Shelf Life: {product.perishabilityDays} Days
           </p>
         </div>
 
         <button
           onClick={onClose}
-          className="p-2 rounded-xl text-muted hover:text-ink hover:bg-stone transition-colors cursor-pointer"
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-stone transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Drawer Body — 5 Required Sections */}
+      {/* Drawer Body — Clean Customer View */}
       <div className="flex-1 overflow-y-auto p-6 space-y-8 divide-y divide-border/60">
-        {/* SECTION 1 — Decision Summary */}
+        {/* SECTION 1 — Current Stock & Order Action */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-accent font-semibold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4" /> Section 1 — Decision Summary
+            <span className="text-xs uppercase tracking-wider text-slate-900 font-bold flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-accent" /> Stock & Replenishment Status
             </span>
             <button
               onClick={() => onSimulateInCrisis(product)}
-              className="px-3 py-1.5 rounded-xl bg-ink text-surface hover:bg-accent text-xs font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-accent text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
             >
               <FlaskConical className="w-3.5 h-3.5 text-ochre" />
-              <span>Test in Scenario Lab</span>
+              <span>Test Stress Scenario</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
-            <div className="p-3.5 rounded-2xl bg-stone/40 border border-border">
-              <div className="text-[10px] uppercase text-muted">On-Hand Stock</div>
-              <div className="text-lg font-semibold text-ink mt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
+              <div className="text-[11px] uppercase text-slate-500 font-bold">On-Shelf Stock</div>
+              <div className="text-xl font-bold text-slate-900 mt-1">
                 {product.onHand}{' '}
-                <span className="text-[10px] font-normal text-muted">
+                <span className="text-xs font-normal text-slate-500">
                   {product.unitOfMeasure || 'units'}
                 </span>
               </div>
-              <div className="text-[10px] text-muted mt-0.5">Committed: {product.committedQty || 0}</div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-stone/40 border border-border">
-              <div className="text-[10px] uppercase text-muted">Inventory Position</div>
-              <div className="text-lg font-semibold text-ink mt-1">
-                {m.inventoryPosition}{' '}
-                <span className="text-[10px] font-normal text-muted">units</span>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Committed: {product.committedQty || 0}
               </div>
-              <div className="text-[10px] text-muted mt-0.5">OH - Committed</div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-stone/40 border border-border">
-              <div className="text-[10px] uppercase text-muted">Reorder Point</div>
-              <div className="text-lg font-semibold text-brick mt-1">
+            <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
+              <div className="text-[11px] uppercase text-slate-500 font-bold">Stock Remaining</div>
+              <div className="text-xl font-bold text-slate-900 mt-1">
+                {(product.onHand / Math.max(0.1, d)).toFixed(1)}{' '}
+                <span className="text-xs font-normal text-slate-500">days</span>
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                At current sales rate
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
+              <div className="text-[11px] uppercase text-slate-500 font-bold">Reorder Level</div>
+              <div className="text-xl font-bold text-brick mt-1">
                 {Math.round(m.reorderPoint)}{' '}
-                <span className="text-[10px] font-normal text-muted">units</span>
+                <span className="text-xs font-normal text-slate-500">units</span>
               </div>
-              <div className="text-[10px] text-muted mt-0.5">ROP threshold</div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Order trigger point
+              </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-stone/40 border border-border">
-              <div className="text-[10px] uppercase text-muted">Suggested Order Qty</div>
-              <div className="text-lg font-semibold text-accent mt-1">
+            <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs">
+              <div className="text-[11px] uppercase text-slate-500 font-bold">Recommended Order</div>
+              <div className="text-xl font-bold text-accent mt-1">
                 {m.inventoryPosition <= m.reorderPoint
                   ? `${Math.round(m.eoq)} units`
                   : '0 units'}
               </div>
-              <div className="text-[10px] text-muted mt-0.5">
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                 {m.inventoryPosition <= m.reorderPoint
-                  ? 'Batch size Q'
-                  : 'Stock sufficient'}
-              </div>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-stone/30 border border-border/80 flex items-center justify-between text-xs font-mono">
-            <span className="text-muted">Target Service Level:</span>
-            <span className="font-semibold text-ink">
-              {(product.targetServiceLevel * 100).toFixed(0)}% (Safety Factor Z = {Z.toFixed(3)})
-            </span>
-          </div>
-        </div>
-
-        {/* SECTION 2 — Calculation Breakdown */}
-        <div className="pt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-accent font-semibold flex items-center gap-2">
-              <Calculator className="w-4 h-4" /> Section 2 — Calculation Breakdown
-            </span>
-            {onOpenFormulasModal && (
-              <button
-                onClick={onOpenFormulasModal}
-                className="text-[11px] font-mono text-muted hover:text-accent flex items-center gap-1 cursor-pointer"
-              >
-                <span>View OR Formulas</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Mathematical Parameter Matrix */}
-          <div className="grid grid-cols-2 gap-3 font-mono text-xs">
-            <div className="p-3.5 rounded-2xl bg-surface border border-border space-y-2">
-              <div className="text-[11px] text-muted uppercase font-semibold">
-                Demand Parameters
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-muted">Mean Daily Demand (d):</span>
-                <span className="font-semibold text-ink">{d.toFixed(2)} units/day</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-muted">Demand Std Dev (σ_d):</span>
-                <span className="font-semibold text-ink">{sigmaD.toFixed(2)} units</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-muted">Lead Time Demand (d × L):</span>
-                <span className="font-semibold text-ink">{expectedLTD.toFixed(1)} units</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-surface border border-border space-y-2">
-              <div className="text-[11px] text-muted uppercase font-semibold">
-                Supplier Parameters
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-muted">Avg Lead Time (L):</span>
-                <span className="font-semibold text-ink">{L.toFixed(1)} days</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-muted">Lead Time Std Dev (σ_L):</span>
-                <span className="font-semibold text-ink">{sigmaL.toFixed(2)} days</span>
-              </div>
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-muted">Combined σ_LTD:</span>
-                <span className="font-semibold text-accent">{combinedStdDev.toFixed(2)} units</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Dual Variance Safety Stock & ROP Formulas */}
-          <div className="p-4 rounded-2xl bg-stone/50 border border-border space-y-3 font-mono text-xs">
-            <div className="text-[11px] text-muted uppercase font-semibold">
-              Deterministic Buffer Equations
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-surface border border-border">
-              <div className="text-[10px] text-muted">Safety Stock Formula:</div>
-              <div className="font-semibold text-ink mt-0.5">
-                SS = Z × √(L·σ_d² + d²·σ_L²) = {Z.toFixed(3)} × √({Math.round(combinedVariance)}) ={' '}
-                <span className="text-moss">{Math.round(m.safetyStock)} units</span>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-surface border border-border">
-              <div className="text-[10px] text-muted">Reorder Point Formula:</div>
-              <div className="font-semibold text-ink mt-0.5">
-                ROP = (d × L) + SS = {expectedLTD.toFixed(1)} + {Math.round(m.safetyStock)} ={' '}
-                <span className="text-brick">{Math.round(m.reorderPoint)} units</span>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-surface border border-border">
-              <div className="text-[10px] text-muted">Order Batch Constraint Adjustments:</div>
-              <div className="text-ink mt-0.5">
-                Raw EOQ: <span className="font-semibold">{Math.round(m.eoq)} units</span> • MOQ:{' '}
-                <span className="font-semibold">{product.minimumOrderQty || 1} units</span> • Pack
-                Size: <span className="font-semibold">{product.packSize || 1}</span>
+                  ? 'Ready to order'
+                  : 'Stock is healthy'}
               </div>
             </div>
           </div>
         </div>
 
-        {/* SECTION 3 — Stock Coverage Trajectory */}
+        {/* SECTION 2 — Replenishment Plan in Plain English */}
         <div className="pt-6 space-y-4">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-wider text-accent font-semibold flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" /> Section 3 — Stock Coverage Trajectory
+            <span className="text-xs uppercase tracking-wider text-slate-900 font-bold flex items-center gap-2">
+              <Box className="w-4 h-4 text-accent" /> How Your Order Is Decided
             </span>
-            <span className="text-[11px] font-mono text-muted">
-              {trajectoryDays}-Day Depletion Outlook
+            <span className="text-xs font-semibold text-slate-500">
+              Plain English Guide
             </span>
           </div>
 
-          <div className="h-48 w-full bg-surface border border-border rounded-2xl p-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {/* Daily Sales */}
+            <div className="p-4 rounded-2xl bg-surface border border-border space-y-1.5 shadow-xs">
+              <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>Daily Customer Demand</span>
+                <span className="text-accent font-bold text-sm">{d.toFixed(1)} units / day</span>
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                Based on your daily store sales history. Peak rush days fluctuate up to ~{(d + sigmaD).toFixed(1)} units.
+              </p>
+            </div>
+
+            {/* Delivery Time */}
+            <div className="p-4 rounded-2xl bg-surface border border-border space-y-1.5 shadow-xs">
+              <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>Supplier Delivery Wait Time</span>
+                <span className="text-accent font-bold text-sm">~{L.toFixed(0)} days</span>
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                The average time it takes for your supplier to deliver fresh stock after placing a purchase order.
+              </p>
+            </div>
+
+            {/* Reorder Trigger */}
+            <div className="p-4 rounded-2xl bg-surface border border-border space-y-1.5 shadow-xs">
+              <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>When to Reorder</span>
+                <span className="text-brick font-bold text-sm">Below {Math.round(m.reorderPoint)} units</span>
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                When shelf stock drops to this number, a new order is triggered immediately so it arrives before you run out.
+              </p>
+            </div>
+
+            {/* Emergency Buffer */}
+            <div className="p-4 rounded-2xl bg-surface border border-border space-y-1.5 shadow-xs">
+              <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+                <span>Emergency Stock Buffer</span>
+                <span className="text-moss font-bold text-sm">+{Math.round(m.safetyStock)} units</span>
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                Reserved stock kept on hand to safeguard against delayed delivery trucks or sudden customer buying rushes.
+              </p>
+            </div>
+          </div>
+
+          {/* Packaging Rules */}
+          <div className="p-4 rounded-2xl bg-stone/50 border border-border text-xs text-slate-700 flex flex-wrap justify-between items-center gap-2">
+            <span className="font-bold text-slate-900">Packaging Rules:</span>
+            <span>Carton Pack Size: <strong className="text-slate-900">{product.packSize || 1} units</strong></span>
+            <span>•</span>
+            <span>Minimum Order: <strong className="text-slate-900">{product.minimumOrderQty || 1} units</strong></span>
+            <span>•</span>
+            <span>Unit Cost: <strong className="text-slate-900">${product.unitCost?.toFixed(2) || '0.00'}</strong></span>
+          </div>
+        </div>
+
+        {/* SECTION 3 — 14-Day Stock Depletion Outlook */}
+        <div className="pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider text-slate-900 font-bold flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-accent" /> 14-Day Stock Depletion Outlook
+            </span>
+            <span className="text-xs text-slate-500 font-medium">
+              Without New Reorders
+            </span>
+          </div>
+
+          <div className="h-48 w-full bg-surface border border-border rounded-2xl p-3 shadow-xs">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={trajectoryData}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#DAD6CE" opacity={0.5} />
-                <XAxis dataKey="day" tick={{ fill: '#6D6A64', fontSize: 10 }} />
-                <YAxis tick={{ fill: '#6D6A64', fontSize: 10 }} />
+                <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 600 }} />
+                <YAxis tick={{ fill: '#475569', fontSize: 10, fontWeight: 600 }} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#FAF9F7',
                     borderColor: '#DAD6CE',
                     borderRadius: '12px',
-                    fontSize: '11px',
-                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    fontWeight: 600,
                   }}
                 />
                 <ReferenceLine
                   y={Math.round(m.reorderPoint)}
-                  stroke="#A04028"
+                  stroke="#BE123C"
                   strokeDasharray="3 3"
                   label={{
-                    value: `ROP (${Math.round(m.reorderPoint)})`,
-                    fill: '#A04028',
+                    value: `Reorder Trigger (${Math.round(m.reorderPoint)})`,
+                    fill: '#BE123C',
                     fontSize: 10,
+                    fontWeight: 700,
                   }}
                 />
                 <ReferenceLine
                   y={Math.round(m.safetyStock)}
-                  stroke="#2F4F3E"
+                  stroke="#2E6B34"
                   strokeDasharray="3 3"
                   label={{
-                    value: `SS (${Math.round(m.safetyStock)})`,
-                    fill: '#2F4F3E',
+                    value: `Buffer (${Math.round(m.safetyStock)})`,
+                    fill: '#2E6B34',
                     fontSize: 10,
+                    fontWeight: 700,
                   }}
                 />
                 <Line
                   type="monotone"
                   dataKey="projectedStock"
-                  name="Physical Inventory"
-                  stroke="#1C1B19"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: '#1C1B19' }}
+                  name="Projected Inventory"
+                  stroke="#0F172A"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: '#0F172A' }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-[11px] font-mono text-muted">
-            Note: Physical stock bounded at zero. Reorder threshold line indicates when a new purchase batch arrives to replenish inventory.
+          <p className="text-xs text-slate-500 font-medium">
+            The black line shows shelf stock depleting over the next 14 days. When it drops below the red line, StockSense generates an order immediately so replacement stock arrives before shelves empty.
           </p>
         </div>
 
-        {/* SECTION 4 — Assumptions and Limitations */}
-        <div className="pt-6 space-y-3 font-mono text-xs">
-          <span className="text-xs uppercase tracking-wider text-accent font-semibold flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" /> Section 4 — Assumptions & System Boundaries
+        {/* SECTION 4 — Store Manager Protection Checklist */}
+        <div className="pt-6 space-y-3 text-xs">
+          <span className="text-xs uppercase tracking-wider text-slate-900 font-bold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-moss" /> Store Protection Checklist
           </span>
 
-          <div className="p-4 rounded-2xl bg-stone/40 border border-border space-y-2 text-muted text-[11px]">
+          <div className="p-4 rounded-2xl bg-stone/40 border border-border space-y-2.5 text-slate-700 text-xs">
             <div className="flex items-start gap-2">
-              <span className="text-accent">•</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-moss mt-0.5 shrink-0" />
               <span>
-                <strong className="text-ink">Incoming POs:</strong> In-transit shipments currently assumed to be zero unless explicitly acknowledged via warehouse manifest.
+                <strong className="text-slate-900">Supplier Reliability Monitored:</strong> Vendor delivery history is tracked to account for late shipments automatically.
               </span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-accent">•</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-moss mt-0.5 shrink-0" />
               <span>
-                <strong className="text-ink">Demand History Sufficiency:</strong> 30 consecutive days of chronological demand observations verified.
+                <strong className="text-slate-900">Sales Spike Protection:</strong> One-off flash sales or festival spikes are filtered so you don&apos;t accidentally over-order afterward.
               </span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="text-accent">•</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-moss mt-0.5 shrink-0" />
               <span>
-                <strong className="text-ink">Treatment of Stockout Days:</strong> Zero-demand stockout days flagged and dampened to prevent artificial downward bias on mean sales rate.
-              </span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-accent">•</span>
-              <span>
-                <strong className="text-ink">Calculation Engine:</strong> Continuous Review (r, Q) OR-Engine v2.4 with stochastic dual-variance lead time hedging.
+                <strong className="text-slate-900">Verified History:</strong> Over 30 days of daily sales validated for this product.
               </span>
             </div>
           </div>
         </div>
 
-        {/* SECTION 5 — Recommendation History */}
-        <div className="pt-6 space-y-3 font-mono text-xs pb-6">
-          <span className="text-xs uppercase tracking-wider text-accent font-semibold flex items-center gap-2">
-            <Clock className="w-4 h-4" /> Section 5 — Recommendation History Snapshots
+        {/* SECTION 5 — Recent Order Recommendations */}
+        <div className="pt-6 space-y-3 text-xs pb-6">
+          <span className="text-xs uppercase tracking-wider text-slate-900 font-bold flex items-center gap-2">
+            <Clock className="w-4 h-4 text-accent" /> Recent Order History
           </span>
 
           <div className="space-y-2">
             {recSnapshots.map((rec) => (
               <div
                 key={rec.id}
-                className="p-3.5 rounded-2xl bg-surface border border-border flex justify-between items-center text-[11px]"
+                className="p-3.5 rounded-2xl bg-surface border border-border flex justify-between items-center text-xs shadow-xs"
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-ink">{rec.id}</span>
-                    <span className="text-muted">
+                    <span className="font-bold text-slate-900">{rec.id}</span>
+                    <span className="text-slate-500">
                       {new Date(rec.createdAt).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
                     </span>
                   </div>
-                  <div className="text-muted mt-0.5">
-                    Suggested Order: <span className="text-accent font-semibold">{rec.suggestedOrderQty} units</span> (Batch Size Q)
+                  <div className="text-slate-600 mt-0.5 font-medium">
+                    Recommended Order: <strong className="text-accent">{rec.suggestedOrderQty} units</strong>
                   </div>
                 </div>
 
                 <div className="text-right">
                   <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                       rec.status === 'reorder_now'
                         ? 'bg-brick/10 text-brick border border-brick/20'
                         : 'bg-moss/10 text-moss border border-moss/20'
                     }`}
                   >
-                    {rec.status === 'reorder_now' ? 'PO Generated' : 'Healthy'}
+                    {rec.status === 'reorder_now' ? 'Order Due' : 'Stock Normal'}
                   </span>
                 </div>
               </div>
@@ -457,7 +431,7 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
       <div className="p-4 border-t border-border flex justify-between items-center bg-stone/30">
         <button
           onClick={onClose}
-          className="px-4 py-2 border border-border rounded-xl text-xs font-mono text-muted hover:text-ink cursor-pointer"
+          className="px-4 py-2 border border-border rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-stone cursor-pointer"
         >
           Close Panel
         </button>
@@ -467,11 +441,11 @@ export const ProductDetailDrawer: React.FC<ProductDetailDrawerProps> = ({
             onClose();
             onSimulateInCrisis(product);
           }}
-          className="px-5 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors cursor-pointer flex items-center gap-2 shadow-xs"
+          className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-accent transition-colors cursor-pointer flex items-center gap-2 shadow-sm"
         >
-          <FlaskConical className="w-3.5 h-3.5 text-ochre" />
+          <FlaskConical className="w-4 h-4 text-ochre" />
           <span>Launch in Scenario Lab</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>

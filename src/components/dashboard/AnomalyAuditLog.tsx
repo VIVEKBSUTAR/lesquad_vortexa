@@ -63,17 +63,17 @@ export const AnomalyAuditLog: React.FC<AnomalyAuditLogProps> = ({ products }) =>
   return (
     <div className="bg-surface rounded-2xl border border-border p-6 lg:p-8 shadow-sm space-y-6">
       {/* Header & Description */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border font-sans">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-anomaly font-semibold mb-1">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-anomaly font-bold mb-1">
             <Activity className="w-3.5 h-3.5" />
-            Table 3 • anomaly_reviews Schema
+            Unusual Demand & Sales Spike Log
           </div>
-          <h3 className="font-serif text-2xl text-ink font-normal">
-            Automated Anomaly Detection & Human Review Ledger
+          <h3 className="font-sans text-2xl text-slate-900 font-bold tracking-tight">
+            Sales Spike Detection & Review Ledger
           </h3>
-          <p className="text-muted text-xs font-sans mt-0.5">
-            Machine detection and AI suggestions are decoupled from user classification. Raw demand records remain immutable.
+          <p className="text-slate-600 text-xs font-sans mt-0.5">
+            Review flagged promotional surges, duplicate barcode scans, and unusual store sales observations.
           </p>
         </div>
 
@@ -220,26 +220,26 @@ export const AnomalyAuditLog: React.FC<AnomalyAuditLogProps> = ({ products }) =>
         </table>
       </div>
 
-      <div className="pt-4 border-t border-border flex justify-between items-center text-[11px] font-mono text-muted">
+      <div className="pt-4 border-t border-border flex justify-between items-center text-[11px] font-sans text-slate-500 font-medium">
         <span>Displaying {filtered.length} of {reviews.length} anomaly review records</span>
-        <span className="text-moss flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5" /> Statistical clamps active — no unauthorized overrides
+        <span className="text-moss flex items-center gap-1.5 font-bold">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Protection limits active — raw store records preserved
         </span>
       </div>
 
-      {/* Human Review Modal (Table 3: anomaly_reviews update) */}
+      {/* Human Review Modal (anomaly_reviews update) */}
       {activeReviewItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
           <form
             onSubmit={handleSaveReview}
-            className="bg-surface rounded-2xl border border-border w-full max-w-lg p-6 lg:p-8 shadow-2xl space-y-6"
+            className="bg-surface rounded-2xl border border-border w-full max-w-lg p-6 lg:p-8 shadow-2xl space-y-6 font-sans"
           >
             <div className="flex justify-between items-center pb-4 border-b border-border">
               <div>
-                <span className="font-mono text-xs text-anomaly uppercase font-semibold">
-                  Human-in-the-Loop Decision Gate
+                <span className="font-sans text-xs text-anomaly uppercase font-bold">
+                  Store Manager Decision Gate
                 </span>
-                <h4 className="font-serif text-2xl font-light text-ink mt-0.5">
+                <h4 className="font-sans text-2xl font-bold text-slate-900 mt-0.5">
                   Review Anomaly: {activeReviewItem.id}
                 </h4>
                 <div className="text-muted font-sans text-xs">

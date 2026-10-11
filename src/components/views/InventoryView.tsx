@@ -263,36 +263,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-accent" />
-            <h1 className="font-serif text-3xl font-light text-ink tracking-tight">
-              Inventory
+            <h1 className="font-bold text-3xl text-slate-900 tracking-tight">
+              Store Stock & Reorder List
             </h1>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-muted">
-              Continuous Review (r, Q)
+            <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-stone border border-border text-slate-700">
+              Live Stock
             </span>
           </div>
-          <p className="text-muted text-sm font-sans max-w-2xl">
-            Inspect live stock positions, reorder thresholds, and transparent calculation evidence for every SKU.
+          <p className="text-slate-600 text-sm font-medium max-w-2xl">
+            Live shelf inventory, reorder thresholds, and one-click purchase order recommendations.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
           {onOpenImportModal && (
             <button
               onClick={onOpenImportModal}
-              className="px-4 py-2 rounded-xl bg-ink text-surface hover:bg-accent font-medium flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-accent font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
             >
-              <Upload className="w-3.5 h-3.5 text-surface" />
-              <span>Import Data</span>
-            </button>
-          )}
-
-          {onOpenFormulasModal && (
-            <button
-              onClick={onOpenFormulasModal}
-              className="px-4 py-2 rounded-xl bg-surface border border-border hover:bg-stone text-ink flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Calculator className="w-3.5 h-3.5 text-ochre" />
-              <span>OR Formulas</span>
+              <Upload className="w-3.5 h-3.5 text-white" />
+              <span>Import Store Data</span>
             </button>
           )}
         </div>
@@ -452,39 +442,37 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       )}
 
       {/* TABLE TAB 1: products (Table 1) */}
+      {/* TABLE TAB 1: products */}
       {activeTableTab === 'products' && (
         <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs">
             <div>
-              <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
-                Core Relational Table • products
-              </span>
-              <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
-                SKU Master Fleet & Replenishment Bounds
+              <h4 className="font-bold text-xl text-slate-900">
+                Product Inventory & Reorder Thresholds
               </h4>
+              <p className="text-slate-600 text-xs font-medium mt-0.5">
+                Live shelf stock, daily customer sales rate, and automated purchase triggers.
+              </p>
             </div>
-            <div className="flex items-center gap-4 text-muted text-[11px] mt-2 sm:mt-0">
-              <span>Showing {filteredProducts.length} of {products.length} SKUs</span>
-              <span className="text-moss flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Deterministic bounds locked
+            <div className="flex items-center gap-3 text-slate-600 text-xs mt-2 sm:mt-0 font-medium">
+              <span>Showing {filteredProducts.length} of {products.length} products</span>
+              <span className="text-moss font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Reorder Triggers Active
               </span>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-mono text-xs">
+            <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider bg-stone/30">
-                  <th className="py-3 px-3">SKU</th>
-                  <th className="py-3 px-3">Product Name & Unit</th>
-                  <th className="py-3 px-3">On Hand</th>
-                  <th className="py-3 px-3">Committed</th>
-                  <th className="py-3 px-3">Inv. Position</th>
-                  <th className="py-3 px-3">Lead Time (L̄ ± σL)</th>
-                  <th className="py-3 px-3">Reorder Point (ROP)</th>
-                  <th className="py-3 px-3">Safety Stock (SS)</th>
-                  <th className="py-3 px-3">Order Constraints</th>
-                  <th className="py-3 px-3">Target SLA & Z</th>
+                <tr className="border-b border-border text-slate-700 uppercase text-[11px] font-bold tracking-wider bg-stone/40">
+                  <th className="py-3 px-3">Product Name & SKU</th>
+                  <th className="py-3 px-3">Stock on Hand</th>
+                  <th className="py-3 px-3">Daily Sales</th>
+                  <th className="py-3 px-3">Days Remaining</th>
+                  <th className="py-3 px-3">Reorder When Below</th>
+                  <th className="py-3 px-3">Recommended Order</th>
+                  <th className="py-3 px-3">Delivery Time</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Actions</th>
                 </tr>
@@ -492,11 +480,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <tbody className="divide-y divide-border/60">
                 {filteredProducts.map((p) => {
                   const statusConfig = {
-                    healthy: { color: 'text-moss', bg: 'bg-moss/10', label: 'Healthy' },
-                    watch: { color: 'text-ochre', bg: 'bg-ochre/10', label: 'Watch' },
-                    order: { color: 'text-brick', bg: 'bg-brick/10', label: 'Order Now' },
-                    reorder_now: { color: 'text-brick', bg: 'bg-brick/10', label: 'Order Now' },
+                    healthy: { color: 'text-moss', bg: 'bg-moss/10', label: 'Stock Safe' },
+                    watch: { color: 'text-ochre', bg: 'bg-ochre/10', label: 'Reorder Soon' },
+                    order: { color: 'text-brick', bg: 'bg-brick/10', label: 'Order Due' },
+                    reorder_now: { color: 'text-brick', bg: 'bg-brick/10', label: 'Order Due' },
                   }[p.metrics.status];
+
+                  const daysLeft = (p.onHand / Math.max(0.1, p.metrics.avgDemand)).toFixed(1);
 
                   return (
                     <tr
@@ -504,73 +494,84 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       onClick={() => setSelectedProduct(p)}
                       className="hover:bg-stone/50 transition-colors cursor-pointer group"
                     >
-                      <td className="py-3.5 px-3 font-semibold text-ink whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span>{p.sku}</span>
-                        </div>
-                        <span className="text-[10px] text-muted block font-normal">{p.id}</span>
-                      </td>
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        <div className="font-sans font-medium text-ink">{p.name}</div>
-                        <div className="text-[10px] text-muted font-mono flex items-center gap-2">
+                        <div className="font-bold text-sm text-slate-900 group-hover:text-accent transition-colors">
+                          {p.name}
+                        </div>
+                        <div className="text-xs text-slate-500 font-medium flex items-center gap-2 mt-0.5">
+                          <span className="bg-stone px-1.5 py-0.5 rounded border border-border font-semibold">
+                            {p.sku}
+                          </span>
+                          <span>•</span>
                           <span>{p.unitOfMeasure}</span>
                           <span>•</span>
-                          <span className="text-accent">{p.category}</span>
+                          <span className="text-accent font-semibold">{p.category}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap font-medium text-ink">
-                        {p.onHand}
+
+                      <td className="py-3.5 px-3 whitespace-nowrap font-bold text-slate-900 text-sm">
+                        {p.onHand}{' '}
+                        <span className="text-xs font-normal text-slate-500">
+                          {p.committedQty > 0 ? `(${p.committedQty} comm.)` : ''}
+                        </span>
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
-                        {p.committedQty || 0}
+
+                      <td className="py-3.5 px-3 whitespace-nowrap font-medium text-slate-700">
+                        {p.metrics.avgDemand.toFixed(1)} u/day
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-accent">
-                        {p.metrics.inventoryPosition}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-slate">
-                        {p.baseLeadTimeDays}d ± {p.leadTimeStdDevDays.toFixed(1)}d
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-brick">
-                        {Math.round(p.metrics.reorderPoint)}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-moss font-semibold">
-                        {Math.round(p.metrics.safetyStock)}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-[11px] text-muted">
-                        <span>Pack: {p.packSize || 1}</span>
-                        <span className="mx-1">•</span>
-                        <span>MOQ: {p.minimumOrderQty || 1}</span>
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
-                        <span className="font-medium text-ink">{(p.targetServiceLevel * 100).toFixed(0)}%</span>
-                        <span className="text-[10px] text-accent block">Z = {p.metrics.zScore.toFixed(3)}</span>
-                      </td>
+
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${statusConfig.color} ${statusConfig.bg}`}>
+                        <span
+                          className={`font-bold text-sm ${
+                            parseFloat(daysLeft) <= p.baseLeadTimeDays
+                              ? 'text-brick'
+                              : 'text-slate-900'
+                          }`}
+                        >
+                          {parseFloat(daysLeft) > 90 ? '> 90 days' : `${daysLeft} days`}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap font-bold text-brick">
+                        {Math.round(p.metrics.reorderPoint)} units
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap font-bold text-accent text-sm">
+                        {p.metrics.inventoryPosition <= p.metrics.reorderPoint
+                          ? `${Math.round(p.metrics.eoq)} units`
+                          : '0 (Sufficient)'}
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap text-slate-700 font-medium">
+                        {p.baseLeadTimeDays} days
+                      </td>
+
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-bold ${statusConfig.color} ${statusConfig.bg}`}
+                        >
                           {statusConfig.label}
                         </span>
                       </td>
+
                       <td className="py-3.5 px-3 whitespace-nowrap text-right space-x-1.5">
                         <button
-                          onClick={() => handleStartEdit(p)}
-                          className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:border-ink text-muted hover:text-ink text-[11px] transition-colors cursor-pointer"
-                          title="Update SKU Parameters (Table 1)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEdit(p);
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:border-slate-900 text-slate-700 hover:text-slate-900 text-xs font-semibold transition-colors cursor-pointer"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleCalculateRecommendation(p)}
-                          className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:bg-ink hover:text-surface text-[11px] transition-colors cursor-pointer"
-                          title="Calculate Replenishment Snapshot (Table 5)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProduct(p);
+                          }}
+                          className="px-3 py-1 rounded-lg bg-surface border border-border hover:bg-slate-900 hover:text-white text-slate-900 text-xs font-bold transition-colors cursor-pointer shadow-xs"
                         >
-                          Calculate
-                        </button>
-                        <button
-                          onClick={() => setSelectedProduct(p)}
-                          className="px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-accent text-accent text-[11px] transition-colors cursor-pointer"
-                          title="View Full Technical Audit"
-                        >
-                          Audit
+                          Details
                         </button>
                       </td>
                     </tr>
@@ -582,46 +583,38 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       )}
 
-      {/* TABLE TAB 2: recommendations (Table 5) */}
+      {/* TABLE TAB 2: recommendations (Purchase Orders Log) */}
       {activeTableTab === 'recommendations' && (
         <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs">
             <div>
-              <span className="text-[10px] uppercase tracking-wider text-accent font-semibold">
-                Immutable Snapshot Log • recommendations (Table 5)
-              </span>
-              <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
-                Deterministic Calculation History
+              <h4 className="font-bold text-xl text-slate-900">
+                Purchase Order Recommendations & History
               </h4>
-              <p className="text-muted text-xs font-sans mt-0.5">
-                Each replenishment run creates an immutable row with inputs, service factor, and human-readable explanation.
+              <p className="text-slate-600 text-xs font-medium mt-0.5">
+                Every purchase recommendation recorded with inventory levels and batch quantities.
               </p>
             </div>
-            <div className="flex items-center gap-3 text-muted text-[11px] mt-2 sm:mt-0">
-              <span>{filteredRecommendations.length} snapshots recorded</span>
-              <span className="text-accent flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" /> Immutable ledger
+            <div className="flex items-center gap-3 text-slate-600 text-xs mt-2 sm:mt-0 font-medium">
+              <span>{filteredRecommendations.length} orders recorded</span>
+              <span className="text-moss font-bold flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" /> Verified Ledger
               </span>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left font-mono text-xs">
+            <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider bg-stone/30">
-                  <th className="py-3 px-3">Snapshot ID</th>
-                  <th className="py-3 px-3">SKU & Product</th>
-                  <th className="py-3 px-3">Calculated At</th>
-                  <th className="py-3 px-3">Formula Version</th>
-                  <th className="py-3 px-3">Inv. Position</th>
-                  <th className="py-3 px-3">LT Demand (d̄ · L̄)</th>
-                  <th className="py-3 px-3">Safety Stock (SS)</th>
-                  <th className="py-3 px-3">Reorder Point (ROP)</th>
-                  <th className="py-3 px-3">Raw EOQ</th>
-                  <th className="py-3 px-3">Suggested Order</th>
-                  <th className="py-3 px-3">Factor Z</th>
+                <tr className="border-b border-border text-slate-700 uppercase text-[11px] font-bold tracking-wider bg-stone/40">
+                  <th className="py-3 px-3">Order ID</th>
+                  <th className="py-3 px-3">Product Name</th>
+                  <th className="py-3 px-3">Order Date & Time</th>
+                  <th className="py-3 px-3">Stock at Order</th>
+                  <th className="py-3 px-3">Reorder Trigger</th>
+                  <th className="py-3 px-3">Recommended Quantity</th>
                   <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3 text-right">Payload</th>
+                  <th className="py-3 px-3 text-right">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -631,43 +624,28 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                   return (
                     <tr key={rec.id} className="hover:bg-stone/50 transition-colors">
-                      <td className="py-3.5 px-3 font-semibold text-accent whitespace-nowrap">
+                      <td className="py-3.5 px-3 font-bold text-accent whitespace-nowrap">
                         {rec.id}
                       </td>
                       <td className="py-3.5 px-3 whitespace-nowrap">
-                        <div className="font-sans font-medium text-ink">{product?.name || rec.productId}</div>
-                        <div className="text-[10px] text-muted font-mono">{product?.sku}</div>
+                        <div className="font-bold text-sm text-slate-900">{product?.name || rec.productId}</div>
+                        <div className="text-xs text-slate-500 font-medium">{product?.sku}</div>
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
+                      <td className="py-3.5 px-3 whitespace-nowrap text-slate-600 font-medium">
                         {new Date(rec.calculatedAt).toLocaleDateString()} {new Date(rec.calculatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-[11px] text-muted">
-                        {rec.formulaVersion}
+                      <td className="py-3.5 px-3 whitespace-nowrap font-bold text-slate-900">
+                        {rec.inventoryPosition} units
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap font-medium text-ink">
-                        {rec.inventoryPosition}
+                      <td className="py-3.5 px-3 whitespace-nowrap font-bold text-brick">
+                        {rec.reorderPoint} units
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-slate">
-                        {rec.expectedLeadTimeDemand}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-moss font-semibold">
-                        {rec.safetyStock}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-brick font-semibold">
-                        {rec.reorderPoint}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
-                        {rec.rawEoq}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-ink">
-                        {rec.suggestedOrderQty} {product?.unitOfMeasure}
-                      </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-accent">
-                        {rec.zFactor.toFixed(3)}
+                      <td className="py-3.5 px-3 whitespace-nowrap font-bold text-slate-900 text-sm">
+                        {rec.suggestedOrderQty} {product?.unitOfMeasure || 'units'}
                       </td>
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${
+                          className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                             isReorder
                               ? 'bg-brick/10 text-brick'
                               : rec.status === 'watch'
@@ -675,17 +653,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               : 'bg-moss/10 text-moss'
                           }`}
                         >
-                          {rec.status.replace('_', ' ')}
+                          {isReorder ? 'Order Generated' : rec.status === 'watch' ? 'Approaching' : 'Stock Normal'}
                         </span>
                       </td>
                       <td className="py-3.5 px-3 whitespace-nowrap text-right">
                         <button
                           onClick={() => setInspectRecJson(rec)}
-                          className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:bg-ink hover:text-surface text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                          title="Inspect JSON input snapshot and assumptions"
+                          className="px-3 py-1 rounded-lg border border-border bg-stone hover:bg-slate-900 hover:text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
                         >
                           <FileCode className="w-3.5 h-3.5 text-accent" />
-                          <span>Inspect JSON</span>
+                          <span>View Details</span>
                         </button>
                       </td>
                     </tr>

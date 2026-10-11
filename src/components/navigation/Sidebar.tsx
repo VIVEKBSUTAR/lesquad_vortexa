@@ -94,8 +94,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Four Primary Navigation Items */}
         <div className="space-y-1">
-          <div className="px-2 pb-2 text-[10px] font-mono uppercase tracking-wider text-muted font-semibold">
-            Decision Modules
+          <div className="px-2 pb-2 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+            Store Navigation
           </div>
 
           {navItems.map((item) => {
@@ -107,28 +107,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => onSelectTab(item.id)}
                 className={`w-full text-left p-3 rounded-2xl transition-all cursor-pointer group flex items-start gap-3 border ${
                   isActive
-                    ? 'bg-ink text-surface border-ink shadow-sm'
-                    : 'text-ink hover:bg-stone/60 border-transparent hover:border-border/60'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-md font-semibold'
+                    : 'text-slate-800 hover:bg-stone/60 border-transparent hover:border-border/60'
                 }`}
               >
                 <div
                   className={`p-2 rounded-xl transition-colors ${
-                    isActive ? 'bg-surface/10 text-surface' : 'bg-surface border border-border text-accent group-hover:text-ink'
+                    isActive ? 'bg-white/10 text-white' : 'bg-surface border border-border text-accent group-hover:text-slate-900'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="font-sans text-sm font-medium truncate">
+                    <span className="text-sm font-bold truncate">
                       {item.label}
                     </span>
                     {item.badge && (
                       <span
-                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md ${
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
                           isActive
-                            ? 'bg-surface/20 text-surface'
-                            : 'bg-stone text-muted group-hover:text-ink'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-stone text-slate-600 group-hover:text-slate-900'
                         }`}
                       >
                         {item.badge}
@@ -136,8 +136,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                   </div>
                   <p
-                    className={`text-[11px] font-mono truncate mt-0.5 ${
-                      isActive ? 'text-surface/70' : 'text-muted'
+                    className={`text-xs truncate mt-0.5 ${
+                      isActive ? 'text-white/80' : 'text-slate-500 font-medium'
                     }`}
                   >
                     {item.subtitle}
@@ -149,43 +149,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Bottom Section: Formulas, Product Showcase & Integrity */}
+      {/* Bottom Section: Product Showcase & Status */}
       <div className="p-4 border-t border-border space-y-2 bg-stone/20">
         {/* Showcase Tour Link */}
         <button
           onClick={() => onSelectTab('product')}
-          className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between text-xs font-mono ${
+          className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between text-xs font-medium ${
             activeTab === 'product'
-              ? 'bg-accent text-surface font-semibold shadow-xs'
-              : 'text-muted hover:text-ink hover:bg-surface border border-transparent hover:border-border'
+              ? 'bg-slate-900 text-white font-bold shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-surface border border-transparent hover:border-border'
           }`}
         >
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-accent" />
-            <span>Product Showcase Tour</span>
+            <span className="font-semibold">Interactive Product Tour</span>
           </div>
           <ChevronRight className="w-3.5 h-3.5 opacity-60" />
         </button>
 
-        {/* Operational Formulas Modal Button */}
-        <button
-          onClick={onOpenFormulasModal}
-          className="w-full text-left p-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between text-xs font-mono text-muted hover:text-ink hover:bg-surface border border-transparent hover:border-border"
-        >
-          <div className="flex items-center gap-2">
-            <Calculator className="w-3.5 h-3.5 text-ochre" />
-            <span>OR Formulas & Math</span>
-          </div>
-          <ArrowUpRight className="w-3.5 h-3.5 opacity-60" />
-        </button>
-
         {/* System Integrity Badge */}
-        <div className="pt-2 px-1 flex items-center justify-between text-[10px] font-mono text-muted">
+        <div className="pt-2 px-1 flex items-center justify-between text-xs text-slate-600 font-medium">
           <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-moss animate-pulse" />
-            <span>OR Engine v2.4</span>
+            <span className="w-2 h-2 rounded-full bg-moss animate-pulse" />
+            <span className="font-semibold text-slate-800">Auto-Replenish</span>
           </div>
-          <span>Continuous (r, Q)</span>
+          <span className="text-slate-500 font-medium">Active</span>
         </div>
       </div>
     </aside>

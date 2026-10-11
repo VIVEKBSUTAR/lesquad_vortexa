@@ -117,28 +117,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
       if (daysUntilStockout <= leadTime) {
         riskLevel = 'High';
-        mainReason = `On-hand (${p.onHand}) < lead-time demand (${Math.round(
-          d * leadTime
-        )}). Stockout projected before delivery.`;
-        suggestedNextAction = `Place emergency PO for ${Math.round(
-          p.metrics.eoq
-        )} ${p.unitOfMeasure || 'units'}`;
+        mainReason = `Only ${daysUntilStockout.toFixed(1)} days of stock left. Supplier takes ${leadTime.toFixed(0)} days to deliver. Reorder immediately.`;
+        suggestedNextAction = `Order ${Math.round(p.metrics.eoq)} ${p.unitOfMeasure || 'units'} now`;
       } else if (isReorderDue) {
         riskLevel = 'Medium';
-        mainReason = `Inventory position (${
-          p.metrics.inventoryPosition
-        }) at/below ROP (${Math.round(
-          p.metrics.reorderPoint
-        )}). Normal replenishment cycle.`;
-        suggestedNextAction = `Generate PO for ${Math.round(p.metrics.eoq)} ${
-          p.unitOfMeasure || 'units'
-        }`;
+        mainReason = `Stock reached reorder trigger level (${Math.round(p.metrics.reorderPoint)} units). Regular restock due.`;
+        suggestedNextAction = `Order ${Math.round(p.metrics.eoq)} ${p.unitOfMeasure || 'units'}`;
       } else {
         riskLevel = 'Low';
-        mainReason = `Buffer intact. Position (${
-          p.metrics.inventoryPosition
-        }) provides ${stockCoverageDays.toFixed(1)} days coverage.`;
-        suggestedNextAction = 'Maintain daily monitoring';
+        mainReason = `Healthy stock with ${stockCoverageDays.toFixed(1)} days of coverage. Emergency buffer safe.`;
+        suggestedNextAction = 'Stock is safe';
       }
 
       return {
@@ -172,48 +160,48 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-moss animate-pulse" />
-            <h1 className="font-serif text-3xl font-light text-ink tracking-tight">
-              Overview
+            <h1 className="font-bold text-3xl text-slate-900 tracking-tight">
+              Store Inventory Overview
             </h1>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-muted">
+            <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-stone border border-border text-slate-700">
               Fleet Alpha
             </span>
           </div>
-          <p className="text-muted text-sm font-sans max-w-2xl">
-            Your inventory health, emerging risks, and recommended replenishment actions across the dark store network.
+          <p className="text-slate-600 text-sm font-medium max-w-2xl">
+            Live inventory status, urgent restock alerts, and recommended purchase orders for your store.
           </p>
-          <div className="flex flex-wrap items-center gap-4 mt-3 text-xs font-mono text-muted">
+          <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-600 font-medium">
             <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-accent" />
-              <span>Analysis ready: Last calculated today at 14:32</span>
+              <Clock className="w-4 h-4 text-accent" />
+              <span>Updated today at 14:32</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Scale className="w-3.5 h-3.5 text-ochre" />
-              <span>Policy: SLA {(serviceLevel * 100).toFixed(0)}% (Z={zScore.toFixed(3)})</span>
+              <Scale className="w-4 h-4 text-ochre" />
+              <span>Stock Protection: <strong className="text-slate-900">{(serviceLevel * 100).toFixed(0)}% High Reliability</strong></span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 font-mono text-xs">
+        <div className="flex items-center gap-3 text-xs font-semibold">
           <button
             onClick={handleRefreshAnalysis}
             disabled={isRefreshing}
-            className="px-4 py-2 rounded-xl bg-surface border border-border hover:bg-stone text-ink flex items-center gap-2 transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-surface border border-border hover:bg-stone text-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
           >
             <RotateCcw
-              className={`w-3.5 h-3.5 text-muted ${
+              className={`w-3.5 h-3.5 text-slate-500 ${
                 isRefreshing ? 'animate-spin text-accent' : ''
               }`}
             />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Analysis'}</span>
+            <span>{isRefreshing ? 'Checking...' : 'Refresh Status'}</span>
           </button>
 
           <button
             onClick={onOpenImportModal}
-            className="px-4 py-2 rounded-xl bg-ink text-surface hover:bg-accent font-medium flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-accent font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
           >
-            <Upload className="w-3.5 h-3.5 text-surface" />
-            <span>Import Data</span>
+            <Upload className="w-3.5 h-3.5 text-white" />
+            <span>Upload Store Data</span>
           </button>
         </div>
       </div>
@@ -329,54 +317,56 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
       </div>
 
-      {/* C. Stockout Risk Radar — Primary Component (Prioritized List/Table) */}
+      {/* C. Stockout Risk Radar — Urgent Action List */}
       <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-3xl p-6 lg:p-8 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-brick font-semibold uppercase tracking-wider">
-                Primary Component
-              </span>
-              <h2 className="font-serif text-2xl font-light text-ink">
+              <h2 className="font-bold text-2xl text-slate-900 tracking-tight">
                 Stockout Risk Radar
               </h2>
             </div>
-            <p className="text-muted text-xs font-sans">
-              Prioritized by replenishment urgency. Selecting any row opens that product directly in Inventory details.
+            <p className="text-slate-600 text-xs font-medium">
+              Products sorted by urgency. Click any product to review reorder details or generate a purchase order.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 font-mono text-xs text-muted">
-            <span className="w-2 h-2 rounded-full bg-brick" />
-            <span>High Risk (&lt; Lead Time)</span>
-            <span className="w-2 h-2 rounded-full bg-ochre ml-2" />
-            <span>Medium (At ROP)</span>
-            <span className="w-2 h-2 rounded-full bg-moss ml-2" />
-            <span>Low (Buffer Ok)</span>
+          <div className="flex items-center gap-3 text-xs font-semibold">
+            <span className="flex items-center gap-1.5 text-brick">
+              <span className="w-2.5 h-2.5 rounded-full bg-brick" />
+              Urgent (Less than Delivery Time)
+            </span>
+            <span className="flex items-center gap-1.5 text-ochre ml-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-ochre" />
+              Reorder Due
+            </span>
+            <span className="flex items-center gap-1.5 text-moss ml-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-moss" />
+              Safe Buffer
+            </span>
           </div>
         </div>
 
         {/* Priority Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-xs">
+          <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-border text-[11px] text-muted uppercase">
-                <th className="pb-3 font-medium">Product / SKU</th>
-                <th className="pb-3 font-medium">Risk Level</th>
-                <th className="pb-3 font-medium text-right">Est. Days to Stockout</th>
-                <th className="pb-3 font-medium text-right">Stock Coverage</th>
-                <th className="pb-3 font-medium text-right">Supplier Lead Time</th>
-                <th className="pb-3 font-medium pl-4">Main Reason</th>
-                <th className="pb-3 font-medium text-right">Suggested Action</th>
+              <tr className="border-b border-border text-[11px] text-slate-700 uppercase font-bold tracking-wider">
+                <th className="pb-3">Product Name</th>
+                <th className="pb-3">Stock Status</th>
+                <th className="pb-3 text-right">Stock Remaining</th>
+                <th className="pb-3 text-right">Delivery Wait Time</th>
+                <th className="pb-3 pl-4">Stock Situation</th>
+                <th className="pb-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {radarItems.map(({ product, riskLevel, daysUntilStockout, stockCoverageDays, leadTime, mainReason, suggestedNextAction }) => {
+              {radarItems.map(({ product, riskLevel, daysUntilStockout, leadTime, mainReason, suggestedNextAction }) => {
                 const riskBadge = {
                   High: 'bg-brick/10 text-brick border-brick/30',
                   Medium: 'bg-ochre/10 text-ochre border-ochre/30',
                   Low: 'bg-moss/10 text-moss border-moss/30',
-                  'Insufficient data': 'bg-stone text-muted border-border',
+                  'Insufficient data': 'bg-stone text-slate-600 border-border',
                 }[riskLevel];
 
                 return (
@@ -386,11 +376,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     className="hover:bg-stone/50 cursor-pointer transition-colors group"
                   >
                     <td className="py-4 pr-3">
-                      <div className="font-sans font-medium text-sm text-ink group-hover:text-accent transition-colors">
+                      <div className="font-bold text-sm text-slate-900 group-hover:text-accent transition-colors">
                         {product.name}
                       </div>
-                      <div className="text-[11px] text-muted flex items-center gap-1.5 mt-0.5">
-                        <span className="bg-stone px-1.5 py-0.2 rounded border border-border">
+                      <div className="text-xs text-slate-500 font-medium flex items-center gap-2 mt-0.5">
+                        <span className="bg-stone px-1.5 py-0.5 rounded border border-border font-semibold">
                           {product.sku}
                         </span>
                         <span>•</span>
@@ -400,31 +390,27 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
                     <td className="py-4 pr-3">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${riskBadge}`}
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-xs font-bold ${riskBadge}`}
                       >
-                        {riskLevel}
+                        {riskLevel === 'High' ? 'Urgent Reorder' : riskLevel === 'Medium' ? 'Reorder Due' : 'Stock Healthy'}
                       </span>
                     </td>
 
                     <td className="py-4 pr-3 text-right">
                       <span
-                        className={`font-semibold ${
-                          daysUntilStockout <= leadTime ? 'text-brick' : 'text-ink'
+                        className={`font-bold text-sm ${
+                          daysUntilStockout <= leadTime ? 'text-brick' : 'text-slate-900'
                         }`}
                       >
-                        {daysUntilStockout > 90 ? '> 90 d' : `${daysUntilStockout.toFixed(1)} d`}
+                        {daysUntilStockout > 90 ? '> 90 days' : `${daysUntilStockout.toFixed(1)} days`}
                       </span>
                     </td>
 
-                    <td className="py-4 pr-3 text-right text-muted">
-                      {stockCoverageDays > 90 ? '> 90 d' : `${stockCoverageDays.toFixed(1)} d`}
+                    <td className="py-4 pr-3 text-right font-medium text-slate-700">
+                      {leadTime.toFixed(0)} days to deliver
                     </td>
 
-                    <td className="py-4 pr-3 text-right text-muted">
-                      {leadTime.toFixed(1)} d (±{product.metrics.leadTimeStdDev.toFixed(1)})
-                    </td>
-
-                    <td className="py-4 pl-4 pr-3 max-w-xs text-[11px] text-muted leading-relaxed">
+                    <td className="py-4 pl-4 pr-3 max-w-xs text-xs text-slate-600 leading-relaxed font-medium">
                       {mainReason}
                     </td>
 
@@ -434,10 +420,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           e.stopPropagation();
                           handleRowClick(product);
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-surface border border-border group-hover:bg-ink group-hover:text-surface text-[11px] text-ink transition-all inline-flex items-center gap-1 shadow-xs cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-xl bg-surface border border-border group-hover:bg-slate-900 group-hover:text-white text-xs font-bold text-slate-800 transition-all inline-flex items-center gap-1 shadow-xs cursor-pointer"
                       >
                         <span>{suggestedNextAction}</span>
-                        <ChevronRight className="w-3 h-3" />
+                        <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -454,29 +440,29 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-3xl p-6 lg:p-7 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-serif text-xl font-light text-ink">
-                Fleet Inventory Health
+              <h3 className="font-bold text-xl text-slate-900">
+                Store Stock Health
               </h3>
-              <Layers className="w-4 h-4 text-muted" />
+              <Layers className="w-4 h-4 text-slate-500" />
             </div>
-            <p className="text-muted text-xs font-sans mb-6">
-              Distribution of SKUs across deterministic buffer thresholds.
+            <p className="text-slate-600 text-xs font-medium mb-6">
+              Distribution of catalogue items across restock stages.
             </p>
 
             {/* Health Distribution Breakdown Bars */}
-            <div className="space-y-4 font-mono text-xs">
+            <div className="space-y-4 text-xs">
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="flex items-center gap-1.5 text-brick font-medium">
-                    <span className="w-2 h-2 rounded-full bg-brick" />
-                    Reorder Now (Effective Stock ≤ ROP)
+                  <span className="flex items-center gap-1.5 text-brick font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-brick" />
+                    Urgent Reorder Needed
                   </span>
-                  <span className="font-semibold text-brick">
-                    {productsRequiringReorder.length} SKUs (
+                  <span className="font-bold text-brick">
+                    {productsRequiringReorder.length} Items (
                     {Math.round((productsRequiringReorder.length / products.length) * 100)}%)
                   </span>
                 </div>
-                <div className="w-full h-2.5 rounded-full bg-stone overflow-hidden border border-border">
+                <div className="w-full h-3 rounded-full bg-stone overflow-hidden border border-border">
                   <div
                     className="h-full bg-brick transition-all duration-500"
                     style={{
@@ -488,12 +474,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="flex items-center gap-1.5 text-ochre font-medium">
-                    <span className="w-2 h-2 rounded-full bg-ochre" />
-                    Buffer Watch (Approaching ROP)
+                  <span className="flex items-center gap-1.5 text-ochre font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-ochre" />
+                    Order Soon (Low Stock)
                   </span>
-                  <span className="font-semibold text-ochre">
-                    {products.filter((p) => p.metrics.status === 'watch').length} SKUs (
+                  <span className="font-bold text-ochre">
+                    {products.filter((p) => p.metrics.status === 'watch').length} Items (
                     {Math.round(
                       (products.filter((p) => p.metrics.status === 'watch').length /
                         products.length) *
@@ -501,7 +487,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     )}%)
                   </span>
                 </div>
-                <div className="w-full h-2.5 rounded-full bg-stone overflow-hidden border border-border">
+                <div className="w-full h-3 rounded-full bg-stone overflow-hidden border border-border">
                   <div
                     className="h-full bg-ochre transition-all duration-500"
                     style={{
@@ -517,12 +503,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="flex items-center gap-1.5 text-moss font-medium">
-                    <span className="w-2 h-2 rounded-full bg-moss" />
-                    Healthy Stocked (Buffer Safe)
+                  <span className="flex items-center gap-1.5 text-moss font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-moss" />
+                    Healthy Stock (Sufficient)
                   </span>
-                  <span className="font-semibold text-moss">
-                    {products.filter((p) => p.metrics.status === 'healthy').length} SKUs (
+                  <span className="font-bold text-moss">
+                    {products.filter((p) => p.metrics.status === 'healthy').length} Items (
                     {Math.round(
                       (products.filter((p) => p.metrics.status === 'healthy').length /
                         products.length) *
@@ -530,7 +516,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     )}%)
                   </span>
                 </div>
-                <div className="w-full h-2.5 rounded-full bg-stone overflow-hidden border border-border">
+                <div className="w-full h-3 rounded-full bg-stone overflow-hidden border border-border">
                   <div
                     className="h-full bg-moss transition-all duration-500"
                     style={{
@@ -546,9 +532,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
 
-          <div className="pt-6 mt-6 border-t border-border flex items-center justify-between text-xs font-mono text-muted">
-            <span>Deterministic Policy:</span>
-            <span className="font-semibold text-ink">Continuous (r, Q)</span>
+          <div className="pt-6 mt-6 border-t border-border flex items-center justify-between text-xs text-slate-600 font-medium">
+            <span>Store Status:</span>
+            <span className="font-bold text-slate-900">Protected & Live Sync</span>
           </div>
         </div>
 
@@ -558,12 +544,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-accent" />
-                <h3 className="font-serif text-xl font-light text-ink">
-                  Observed Demand vs Statistical Forecast
+                <h3 className="font-bold text-xl text-slate-900">
+                  Recent Sales & Expected Demand
                 </h3>
               </div>
-              <p className="text-muted text-xs font-sans mt-0.5">
-                30-day chronological actuals, model projection, and highlighted anomalies.
+              <p className="text-slate-600 text-xs font-medium mt-0.5">
+                Daily units sold compared with forecasted customer demand rate.
               </p>
             </div>
 
@@ -652,11 +638,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-3xl p-6 lg:p-8 shadow-sm space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <div>
-            <h3 className="font-serif text-xl font-light text-ink">
-              Recommended Next Actions
+            <h3 className="font-bold text-xl text-slate-900">
+              Recommended Store Actions
             </h3>
-            <p className="text-muted text-xs font-sans mt-0.5">
-              Actions grounded strictly in verified data, stock levels, and analytical holdouts.
+            <p className="text-slate-600 text-xs font-medium mt-0.5">
+              Priority actions to keep best-sellers in stock and prevent supply delays.
             </p>
           </div>
         </div>
@@ -668,44 +654,44 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               onSelectProduct(products[0]);
               onNavigateToTab('inventory');
             }}
-            className="p-4 rounded-2xl bg-stone/40 border border-border hover:border-ink transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-surface border border-border hover:border-slate-900 transition-all cursor-pointer group flex flex-col justify-between shadow-xs"
           >
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-brick font-semibold mb-1">
-                Immediate Order
+              <div className="text-[11px] uppercase tracking-wider text-brick font-bold mb-1">
+                Urgent Order Needed
               </div>
-              <h4 className="font-sans font-medium text-sm text-ink group-hover:text-accent transition-colors">
-                Inspect Amul Milk 1L
+              <h4 className="font-bold text-sm text-slate-900 group-hover:text-accent transition-colors">
+                Amul Milk 1L
               </h4>
-              <p className="text-xs text-muted font-sans mt-1">
-                Only 0.9 days of coverage remaining before stockout. Supplier lead time is 2 days.
+              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+                Only 0.9 days of stock remaining. Supplier takes 2 days to deliver.
               </p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-mono text-accent pt-3 mt-3 border-t border-border/50">
-              <span>Open in Inventory</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            <div className="flex items-center gap-1 text-xs font-bold text-accent pt-3 mt-3 border-t border-border/50">
+              <span>View Reorder Details</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
           {/* Action 2: Resolve Demand Anomaly */}
           <div
             onClick={() => onNavigateToTab('demand')}
-            className="p-4 rounded-2xl bg-stone/40 border border-border hover:border-ink transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-surface border border-border hover:border-slate-900 transition-all cursor-pointer group flex flex-col justify-between shadow-xs"
           >
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-ochre font-semibold mb-1">
-                Anomaly Queue
+              <div className="text-[11px] uppercase tracking-wider text-ochre font-bold mb-1">
+                Sales Spike Review
               </div>
-              <h4 className="font-sans font-medium text-sm text-ink group-hover:text-accent transition-colors">
-                Classify Cold Room Outage
+              <h4 className="font-bold text-sm text-slate-900 group-hover:text-accent transition-colors">
+                Cold Room Outage Check
               </h4>
-              <p className="text-xs text-muted font-sans mt-1">
-                0-unit drop on 2025-01-03 caused by compressor failure. Classify to protect forecast.
+              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+                Temporary drop on Jan 3 caused by cooler outage. Confirm so forecasts aren&apos;t lowered.
               </p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-mono text-ochre pt-3 mt-3 border-t border-border/50">
-              <span>Review in Demand</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            <div className="flex items-center gap-1 text-xs font-bold text-ochre pt-3 mt-3 border-t border-border/50">
+              <span>Review Sales Spike</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
@@ -715,22 +701,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               onSelectProduct(products[1]);
               onNavigateToTab('scenario');
             }}
-            className="p-4 rounded-2xl bg-stone/40 border border-border hover:border-ink transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-surface border border-border hover:border-slate-900 transition-all cursor-pointer group flex flex-col justify-between shadow-xs"
           >
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-accent font-semibold mb-1">
-                Stress Simulation
+              <div className="text-[11px] uppercase tracking-wider text-accent font-bold mb-1">
+                Festival Planner
               </div>
-              <h4 className="font-sans font-medium text-sm text-ink group-hover:text-accent transition-colors">
-                Stress Test Atta 5kg Surge
+              <h4 className="font-bold text-sm text-slate-900 group-hover:text-accent transition-colors">
+                Atta 5kg Demand Surge
               </h4>
-              <p className="text-xs text-muted font-sans mt-1">
-                Simulate 40% surge in flour demand combined with 7-day mill transport delay.
+              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+                Test a 40% weekend surge combined with a 7-day transport delay from the mill.
               </p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-mono text-accent pt-3 mt-3 border-t border-border/50">
-              <span>Open Scenario Lab</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            <div className="flex items-center gap-1 text-xs font-bold text-accent pt-3 mt-3 border-t border-border/50">
+              <span>Open Scenario Planner</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
 
@@ -740,22 +726,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               onSelectProduct(products[2]);
               onNavigateToTab('inventory');
             }}
-            className="p-4 rounded-2xl bg-stone/40 border border-border hover:border-ink transition-all cursor-pointer group flex flex-col justify-between"
+            className="p-4 rounded-2xl bg-surface border border-border hover:border-slate-900 transition-all cursor-pointer group flex flex-col justify-between shadow-xs"
           >
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-muted font-semibold mb-1">
-                Supplier Settings
+              <div className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-1">
+                Supplier Delivery
               </div>
-              <h4 className="font-sans font-medium text-sm text-ink group-hover:text-accent transition-colors">
-                Sunflower Oil Lead Time
+              <h4 className="font-bold text-sm text-slate-900 group-hover:text-accent transition-colors">
+                Fortune Sunflower Oil
               </h4>
-              <p className="text-xs text-muted font-sans mt-1">
-                Lead-time standard deviation is 1.4 days. Evaluate safety buffer impact.
+              <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+                Distributor takes ~4 days to arrive. Ensure safety buffer is sufficient.
               </p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-mono text-muted group-hover:text-ink pt-3 mt-3 border-t border-border/50">
-              <span>Inspect Settings</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            <div className="flex items-center gap-1 text-xs font-bold text-slate-700 group-hover:text-slate-900 pt-3 mt-3 border-t border-border/50">
+              <span>Inspect Supplier Times</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
         </div>
