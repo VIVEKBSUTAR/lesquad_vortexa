@@ -40,6 +40,7 @@ class Product(Base):
     # Costs & Economic Parameters
     unit_cost = Column(Numeric(12, 2), nullable=True)
     ordering_cost = Column(Numeric(12, 2), nullable=True)
+    fixed_order_cost = synonym("ordering_cost")
     holding_cost_rate = Column(Numeric(5, 4), nullable=True)
     holding_cost_per_unit_year = Column(Numeric(12, 2), nullable=True)
     stockout_cost = Column(Numeric(12, 2), nullable=True)
@@ -47,6 +48,7 @@ class Product(Base):
 
     # Supplier Constraints
     minimum_order_qty = Column(Integer, nullable=True)
+    min_order_qty = synonym("minimum_order_qty")
     pack_size = Column(Integer, nullable=True)
 
     # Status & Tracking

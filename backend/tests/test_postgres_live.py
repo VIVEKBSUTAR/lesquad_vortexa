@@ -188,3 +188,110 @@ def test_postgres_forecast_benchmark_live(postgres_live_check):
         m_data = metrics_res.json()
         assert len(m_data["baseline_metrics"]["predictions"]) > 0
         assert len(m_data["candidate_metrics"]["predictions"]) > 0
+
+
+def test_postgres_scenario_simulation_live(postgres_live_check):
+    """
+    Verify Phase 6:
+    What-If scenario simulation, snapshot persistence in scenario_runs table,
+    retrieval, and comparison against live PostgreSQL container database.
+    """
+    import uuid
+    from datetime import date, timedelta
+
+    from app.db.session import SessionLocal
+    from app.models.demand import DemandRecord
+    from app.models.product import Product
+
+    test_sku = f"SKU-PG-SIM-{uuid.uuid4().hex[:8]}"
+
+    with SessionLocal() as db:
+        prod = Product(
+            sku=test_sku,
+            product_name="Postgres Simulation Test Product",
+            unit_of_measure="piece",
+            on_hand_qty=60,
+            safety_stock=15,
+            reorder_point=35,
+            unit_cost=10.0,
+            holding_cost_rate=0.20,
+            fixed_order_cost=40.0,
+            lead_time_days=4,
+            min_order_qty=20,
+            pack_size=5,
+        )
+        db.add(prod)
+        db.commit()
+        db.refresh(prod)
+
+        start = date(2026, 2, 1)
+        for i in range(14):
+            db.add(
+                DemandRecord(
+                    product_id=prod.id,
+                    date=start + timedelta(days=i),
+                    quantity=8.0,
+                    promotion_flag=False,
+                    stockout_flag=False,
+                )
+            )
+        db.commit()
+        prod_id = prod.id
+        initial_stock = prod.on_hand_qty
+
+    with TestClient(app) as client:
+        # 1. Execute What-If scenario (25% surge, 3-day supplier delay)
+        sim_res = client.post(
+            f"/api/v1/products/{prod_id}/scenarios",
+            json={
+                "scenario_name": "Postgres Live Stress Test",
+                "demand_surge_pct": 25.0,
+                "supplier_delay_days": 3,
+                "horizon_days": 14,
+            },
+        )
+        assert sim_res.status_code == 201, sim_res.text
+        data = sim_res.json()
+        assert data["product_id"] == prod_id
+        assert data["sku"] == test_sku
+        assert data["run_status"] == "completed"
+        assert len(data["timeline"]) == 14
+        assert data["scenario_metrics"] is not None
+        assert data["baseline_metrics"] is not None
+        scenario_id = data["id"]
+
+        # 2. Retrieve persisted scenario
+        get_res = client.get(f"/api/v1/scenarios/{scenario_id}")
+        assert get_res.status_code == 200
+        assert get_res.json()["id"] == scenario_id
+        assert get_res.json()["scenario_name"] == "Postgres Live Stress Test"
+
+        # 3. List scenarios for product
+        list_res = client.get(f"/api/v1/products/{prod_id}/scenarios")
+        assert list_res.status_code == 200
+        assert list_res.json()["total"] >= 1
+
+        # 4. Run scenario comparison
+        comp_res = client.post(
+            f"/api/v1/products/{prod_id}/scenarios/compare",
+            json={
+                "horizon_days": 14,
+                "scenarios": [
+                    {
+                        "scenario_name": "Stress A",
+                        "demand_surge_pct": 20.0,
+                        "supplier_delay_days": 2,
+                    }
+                ],
+            },
+        )
+        assert comp_res.status_code == 200
+        comp_data = comp_res.json()
+        assert comp_data["product_id"] == prod_id
+        assert comp_data["baseline"] is not None
+        assert len(comp_data["comparisons"]) == 1
+
+        # 5. Verify real stock was never mutated
+        with SessionLocal() as db:
+            refreshed_prod = db.get(Product, prod_id)
+            assert refreshed_prod.on_hand_qty == initial_stock

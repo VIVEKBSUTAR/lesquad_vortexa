@@ -464,17 +464,116 @@ Content-Type: application/json
 
 ---
 
-## 10. Running Tests & Migrations
+## 10. Phase 6: What-If Replenishment Simulator
+
+StockSense provides a deterministic, decision-support What-If replenishment simulation engine. It allows inventory managers to stress-test their inventory posture under configurable demand surges and supplier delivery delays over a specified horizon.
+
+> **Critical Safety Guarantee**: The simulator is purely a decision-support and scenario-planning tool. It **never** creates real purchase orders, mutates actual on-hand stock, changes historical demand records, or alters existing replenishment recommendations.
+
+### 10.1 Supported Scenario Types
+
+1. **Baseline Scenario**: Evaluates stock trajectory under current replenishment policy (0% surge, 0 days additional supplier delay).
+2. **Demand Surge Scenario**: Evaluates impact of percentage increase in customer demand (e.g., +10%, +25%, +50%, up to 500%).
+3. **Supplier Delay Scenario**: Evaluates impact of extended delivery lead times in calendar days (e.g., +2, +4, +7, up to 90 days).
+4. **Combined Scenario**: Evaluates simultaneous demand spikes and delivery delays (e.g., +25% surge with +4 days supplier delay).
+5. **Scenario Comparison**: Evaluates baseline alongside one or more stress scenarios side-by-side, calculating delta unmet demand, delta stockout days, and delta inventory costs.
+
+### 10.2 Inventory Flow Assumptions & Event Ordering
+
+Each simulated day $t \in [1, H]$ executes in strict chronological sequence:
+1. **Starting Stock**: Physical on-hand stock carried forward from day $t-1$ (Day 1 starts with the product's actual `current_stock`).
+2. **Replenishment Arrivals**: Pending purchase orders scheduled to arrive on day $t$ arrive before customer demand and become immediately available.
+3. **Demand Fulfillment**:
+   - Surged demand is calculated: $d_t = \max(0, \lceil d_{\text{base}, t} \cdot (1 + \text{surge}\%) \rceil)$.
+   - Fulfilled units = $\min(\text{available}, d_t)$.
+   - Ending stock = $\text{available} - \text{fulfilled} \ge 0$. Physical stock **never** drops below zero.
+   - Unmet demand = $\max(0, d_t - \text{available})$. Unmet units are recorded as lost sales and not backordered or rolled over.
+4. **End-of-Day Reorder Decision**:
+   - Inventory position evaluated: $\text{IP}_t = \text{EndingStock}_t + \text{InTransit}_t - \text{Committed}_t$.
+   - If $\text{IP}_t \le \text{ROP}_{\text{stressed}}$, an order is placed for arrival on day $t + L_{\text{effective}}$, where $L_{\text{effective}} = L_{\text{base}} + \text{delay\_days}$.
+   - Order quantity satisfies: $\max(\lceil\text{EOQ}\rceil, \text{Deficit})$, then constrained by MOQ and rounded up to pack-size multiples.
+
+### 10.3 Demand Source Selection & Limitations
+
+- **Primary Source**: Uses point predictions from a completed `ForecastRun` snapshot for the product when available or explicitly specified (`forecast_run_id`).
+- **Fallback Source**: If no forecast run exists, falls back to historical mean daily demand without imputing missing dates as zero.
+- **Traceability**: API responses explicitly disclose `demand_source_info` (source type, snapshot ID, method, mean demand, standard deviation, and data warnings).
+
+### 10.4 Key Operational Distinctions
+
+| Concept | Distinction |
+|---|---|
+| **Forecast Predictions vs. Simulated Demand** | Forecasts are point estimates of natural customer demand; simulated demand scales the baseline by the user's stress percentage. |
+| **Simulated Replenishment vs. Purchase Orders** | Simulated orders are virtual mathematical events inside the simulation timeline; no real orders or supplier commitments are created. |
+| **On-Hand Inventory vs. Inventory Position** | On-hand is physical stock on the warehouse shelf ($\ge 0$); inventory position includes incoming in-transit orders minus committed reservations. |
+| **Stockout Days vs. Unmet Demand Units** | Stockout days count calendar days where demand exceeded stock; unmet demand counts the exact lost unit volume. |
+| **Configured Costs vs. Unavailable Costs** | Costs are calculated strictly from configured economic fields (`unit_cost`, `holding_cost_rate`, `ordering_cost`, `stockout_cost`). Missing cost fields are flagged with explicit `unavailable_reasons` without inventing financial penalties. |
+
+> **Disclaimer**: The simulator evaluates operating outcomes under specified assumptions. It does not optimize or guarantee future supply-chain outcomes.
+
+### 10.5 Simulator API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/products/{product_id}/scenarios` | Create & execute a What-If scenario run; persists snapshot in `scenario_runs`. |
+| `GET` | `/api/v1/scenarios/{scenario_id}` | Retrieve persisted scenario snapshot with full daily timeline and events. |
+| `GET` | `/api/v1/products/{product_id}/scenarios` | Paginated listing of historical scenario runs for a product. |
+| `POST` | `/api/v1/products/{product_id}/scenarios/compare` | Multi-scenario comparative evaluation against baseline. |
+
+#### Example: Create & Execute Scenario
+```http
+POST /api/v1/products/1/scenarios HTTP/1.1
+Content-Type: application/json
+
+{
+  "scenario_name": "Q4 Holiday Surge & Delay",
+  "demand_surge_pct": 25.0,
+  "supplier_delay_days": 4,
+  "horizon_days": 30
+}
+```
+
+#### Example: Multi-Scenario Comparison
+```http
+POST /api/v1/products/1/scenarios/compare HTTP/1.1
+Content-Type: application/json
+
+{
+  "horizon_days": 30,
+  "scenarios": [
+    {
+      "scenario_name": "Mild Surge",
+      "demand_surge_pct": 10.0,
+      "supplier_delay_days": 0
+    },
+    {
+      "scenario_name": "Severe Supply Chain Delay",
+      "demand_surge_pct": 0.0,
+      "supplier_delay_days": 7
+    },
+    {
+      "scenario_name": "Combined Crisis",
+      "demand_surge_pct": 30.0,
+      "supplier_delay_days": 5
+    }
+  ]
+}
+```
+
+---
+
+## 11. Running Tests & Migrations
 
 ```powershell
-# Run all 131 automated unit and integration tests across all phases
-.\.venv\Scripts\pytest -v
+# Run all 154 automated unit and integration tests across all phases (100% pass)
+.\.venv\Scripts\pytest.exe -v
 
 # Run Ruff linter and formatter check
-.\.venv\Scripts\ruff check app tests
-.\.venv\Scripts\ruff format --check app tests
+.\.venv\Scripts\ruff.exe check app tests
+.\.venv\Scripts\ruff.exe format --check app tests
 
 # Run Alembic migrations
-.\.venv\Scripts\alembic upgrade head
+.\.venv\Scripts\alembic.exe upgrade head
 ```
+
 

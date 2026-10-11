@@ -8,6 +8,7 @@ from app.api.v1.forecasts import router as forecasts_router
 from app.api.v1.imports import router as imports_router
 from app.api.v1.products import router as products_router
 from app.api.v1.recommendations import router as recommendations_router
+from app.api.v1.scenarios import router as scenarios_router
 from app.core.config import settings
 from app.db.session import get_db
 from app.schemas.common import HealthReadyResponse
@@ -18,6 +19,7 @@ api_router.include_router(imports_router)
 api_router.include_router(recommendations_router)
 api_router.include_router(anomalies_router)
 api_router.include_router(forecasts_router)
+api_router.include_router(scenarios_router)
 
 
 class ApiMetaResponse(BaseModel):
@@ -41,7 +43,8 @@ async def api_status() -> ApiMetaResponse:
         phase=(
             "Phase 1 - Backend Foundation (Phase 2 - CSV Import, "
             "Phase 3 - Replenishment, Phase 4 - Demand Anomaly Review, "
-            "Phase 5 - Forecast Benchmark & Evaluation)"
+            "Phase 5 - Forecast Benchmark & Evaluation, "
+            "Phase 6 - What-If Replenishment Simulator)"
         ),
     )
 
