@@ -1,36 +1,51 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getProductsWithComputed } from '@/lib/data';
 import { ProductWithComputed } from '@/lib/types';
+import { apiClient } from '@/lib/api';
 import { StockSense3D } from '@/components/canvas/StockSense3D';
-import { Header } from '@/components/navigation/Header';
+import { Header, ActiveNavTab } from '@/components/navigation/Header';
 import { StoryView } from '@/components/story/StoryView';
-import { DashboardView } from '@/components/dashboard/DashboardView';
+import { OverviewView } from '@/components/views/OverviewView';
+import { InventoryView } from '@/components/views/InventoryView';
+import { DemandInsightsView } from '@/components/views/DemandInsightsView';
+import { ScenarioLabView } from '@/components/views/ScenarioLabView';
 import { IntroOverlay } from '@/components/intro/IntroOverlay';
 
 export default function Home() {
   const [products, setProducts] = useState<ProductWithComputed[]>([]);
-  const [mode, setMode] = useState<'story' | 'dashboard'>('story');
+  const [activeTab, setActiveTab] = useState<ActiveNavTab>('story');
   const [isIntroActive, setIsIntroActive] = useState(true);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [activeChapter, setActiveChapter] = useState(0);
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(null);
+  const [isLiveBackend, setIsLiveBackend] = useState(false);
 
-  // Initialize data on client
+  // Initialize data on mount
   useEffect(() => {
-    const prods = getProductsWithComputed();
-    setProducts(prods);
+    const loadData = async () => {
+      const health = await apiClient.getHealth();
+      setIsLiveBackend(apiClient.isConnectedToLiveBackend);
+      const prods = await apiClient.getProducts();
+      setProducts(prods);
+      if (prods.length > 0) setSelectedProduct(prods[0]);
+    };
+    loadData();
 
-    // Check for query param ?skip=1
-    if (typeof window !== 'undefined' && window.location.search.includes('skip=1')) {
-      setIsIntroActive(false);
-      setMode('dashboard');
+    // Check query params
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('skip') === '1') {
+        setIsIntroActive(false);
+        setActiveTab('overview');
+      }
     }
   }, []);
 
-  // Handle window scroll to synchronize with 3D camera
+  // Window scroll tracking for 3D camera path during Story mode
   useEffect(() => {
-    if (mode !== 'story' || isIntroActive) return;
+    if (activeTab !== 'story' || isIntroActive) return;
 
     const handleScroll = () => {
       const scrollY = window.scrollY;
@@ -38,14 +53,13 @@ export default function Home() {
       const progress = maxScroll > 0 ? Math.min(1, Math.max(0, scrollY / maxScroll)) : 0;
       setScrollProgress(progress);
 
-      // Map progress to chapter (0 to 4)
       const chIndex = Math.min(4, Math.floor(progress * 5));
       setActiveChapter(chIndex);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [mode, isIntroActive]);
+  }, [activeTab, isIntroActive]);
 
   const handleSkipIntro = () => {
     setIsIntroActive(false);
@@ -53,7 +67,7 @@ export default function Home() {
 
   const handleEnterDashboard = () => {
     setIsIntroActive(false);
-    setMode('dashboard');
+    setActiveTab('overview');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -64,6 +78,17 @@ export default function Home() {
     }
   };
 
+  const handleSimulateInCrisis = (p: ProductWithComputed) => {
+    setSelectedProduct(p);
+    setActiveTab('scenario');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const refreshProducts = async () => {
+    const prods = await apiClient.getProducts();
+    setProducts(prods);
+  };
+
   if (!products.length) {
     return (
       <div className="min-h-screen bg-stone flex items-center justify-center font-mono text-xs text-muted">
@@ -72,53 +97,78 @@ export default function Home() {
     );
   }
 
+  const isStoryMode = activeTab === 'story';
+
   return (
     <div className="relative min-h-screen bg-stone selection:bg-accent/20">
-      {/* Grain overlay for filmic industrial aesthetic */}
+      {/* Subtle filmic grain overlay */}
       <div className="grain-overlay" />
 
       {/* Persistent Single 3D WebGL Canvas */}
       <StockSense3D
         products={products}
-        mode={mode}
+        mode={isStoryMode ? 'story' : 'dashboard'}
         scrollProgress={scrollProgress}
         introCompleted={!isIntroActive}
         onIntroComplete={() => setIsIntroActive(false)}
       />
 
-      {/* Sequence 1 Intro Overlay */}
+      {/* Sequence 1: Orbital Intro Overlay */}
       <IntroOverlay
         isIntroActive={isIntroActive}
         onSkip={handleSkipIntro}
       />
 
-      {/* Main DOM UI Layer */}
+      {/* Main DOM Layer */}
       <div className={`relative z-20 transition-opacity duration-700 ${isIntroActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <Header
-          mode={mode}
-          onToggleMode={(newMode) => {
-            setMode(newMode);
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           showSkipIntro={isIntroActive}
           onSkipIntro={handleEnterDashboard}
+          isConnectedToLiveBackend={isLiveBackend}
         />
 
-        <main className="w-full">
-          {mode === 'story' ? (
+        <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {activeTab === 'story' && (
             <StoryView
               products={products}
               activeChapter={activeChapter}
               onSelectChapter={handleSelectChapter}
               onEnterDashboard={handleEnterDashboard}
             />
-          ) : (
-            <DashboardView
+          )}
+
+          {activeTab === 'overview' && (
+            <OverviewView
               products={products}
-              onBackToStory={() => {
-                setMode('story');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
+              onNavigateToTab={(tab) => setActiveTab(tab)}
+              onSimulateInCrisis={handleSimulateInCrisis}
+            />
+          )}
+
+          {activeTab === 'inventory' && (
+            <InventoryView
+              products={products}
+              onRefreshProducts={refreshProducts}
+              onSimulateInCrisis={handleSimulateInCrisis}
+            />
+          )}
+
+          {activeTab === 'demand' && (
+            <DemandInsightsView
+              products={products}
+            />
+          )}
+
+          {activeTab === 'scenario' && (
+            <ScenarioLabView
+              products={products}
+              selectedProduct={selectedProduct || products[0]}
+              onSelectProduct={setSelectedProduct}
             />
           )}
         </main>
