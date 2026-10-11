@@ -1,0 +1,6 @@
+sku,average_lead_time_days,lead_time_stddev_days
+SKU-1001,4,1.0
+SKU-1002,7,1.5
+SKU-1003,6,2.0
+SKU-1004,5,1.0
+SKU-1005,9,2.5

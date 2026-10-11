@@ -1,0 +1,6 @@
+sku,product_name,unit_of_measure,on_hand_qty,committed_qty,unit_cost,ordering_cost,holding_cost_per_unit_year,target_service_level,minimum_order_qty,pack_size
+SKU-1001,Wireless Mouse,units,120,15,450.0,150.0,90.0,0.95,10,5
+SKU-1002,USB-C Cable,units,45,8,180.0,120.0,36.0,0.95,20,10
+SKU-1003,Laptop Stand,units,18,5,850.0,150.0,170.0,0.975,5,5
+SKU-1004,Bluetooth Keyboard,units,32,10,700.0,150.0,140.0,0.95,5,5
+SKU-1005,Webcam,units,9,3,1200.0,200.0,240.0,0.99,4,2
