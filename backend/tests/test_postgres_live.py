@@ -113,3 +113,78 @@ def test_postgres_replenishment_calculation_live(postgres_live_check):
         overview_res = client.get("/api/v1/recommendations?latest_only=true")
         assert overview_res.status_code == 200
         assert any(item["id"] == rec["id"] for item in overview_res.json()["items"])
+
+
+def test_postgres_forecast_benchmark_live(postgres_live_check):
+    """
+    Verify Phase 5:
+    Forecast benchmark execution, snapshot persistence in forecast_runs table,
+    and metrics retrieval against live PostgreSQL container database.
+    """
+    import uuid
+    from datetime import date, timedelta
+
+    from app.db.session import SessionLocal
+    from app.models.demand import DemandRecord
+    from app.models.product import Product
+
+    test_sku = f"SKU-PG-FC-{uuid.uuid4().hex[:8]}"
+
+    with SessionLocal() as db:
+        # Create dedicated live test product with 14 observations
+        prod = Product(
+            sku=test_sku,
+            product_name="Postgres Forecast Test Product",
+            unit_of_measure="piece",
+            on_hand_qty=50,
+            safety_stock=10,
+            reorder_point=25,
+            unit_cost=12.0,
+            lead_time_days=5,
+        )
+        db.add(prod)
+        db.commit()
+        db.refresh(prod)
+
+        start = date(2026, 2, 1)
+        for i in range(14):
+            db.add(
+                DemandRecord(
+                    product_id=prod.id,
+                    date=start + timedelta(days=i),
+                    quantity=float(15 + (i % 5)),
+                    promotion_flag=False,
+                    stockout_flag=False,
+                )
+            )
+        db.commit()
+
+        prod_id = prod.id
+
+    with TestClient(app) as client:
+        # 1. Run forecast benchmark
+        res = client.post(
+            f"/api/v1/products/{prod_id}/forecast-benchmark",
+            json={"test_size": 0.25, "window_size": 5},
+        )
+        assert res.status_code == 200, res.text
+        data = res.json()
+        assert data["product_id"] == prod_id
+        assert data["status"] == "completed"
+        assert data["baseline_method"] == "moving_average"
+        assert data["candidate_method"] == "prophet"
+        assert data["mae_baseline"] is not None
+        assert data["mae_candidate"] is not None
+        run_id = data["id"]
+
+        # 2. Retrieve persisted run
+        get_res = client.get(f"/api/v1/forecast-runs/{run_id}")
+        assert get_res.status_code == 200
+        assert get_res.json()["id"] == run_id
+
+        # 3. Retrieve metrics details
+        metrics_res = client.get(f"/api/v1/forecast-runs/{run_id}/metrics")
+        assert metrics_res.status_code == 200
+        m_data = metrics_res.json()
+        assert len(m_data["baseline_metrics"]["predictions"]) > 0
+        assert len(m_data["candidate_metrics"]["predictions"]) > 0

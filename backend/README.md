@@ -414,10 +414,60 @@ Content-Type: application/json
 
 ---
 
-## 9. Running Tests & Migrations
+## 9. Phase 5: Forecast Benchmark & Performance Evaluation
+
+StockSense provides an explainable, reproducible benchmark comparing a **Moving Average baseline** against a **Prophet candidate model** on an identical chronological holdout period.
+
+### 9.1 Benchmark Workflow & Principles
+
+1. **Strict Chronological Holdout Split**: Earlier observations form the training set; later observations form the holdout evaluation set. Random shuffling is strictly disallowed.
+2. **Leakage Prevention**: All model fitting, baseline averages, and preprocessing statistics consume only the training series. Holdout actuals are strictly withheld until computing evaluation errors.
+3. **Fixed-Origin Multi-Step Forecasting**: Both models produce forecasts for the entire holdout horizon without consuming actual holdout demand.
+4. **Data Integrity & Non-Imputation**: Evaluates recorded transaction dates directly. Missing calendar dates are never imputed as zero; explicit zero demand is preserved.
+5. **Raw Demand Evaluation**: Original demand records are immutable. Phase 4 reviewed anomalies are logged in diagnostic metadata for traceability but are not silently altered or removed.
+6. **Zero-Denominator Safety**: When total actual holdout demand equals zero ($\sum y_i = 0$), WAPE is returned as `null` with a clear explanation (`wape_unavailable_reason`) rather than dividing by zero.
+7. **Negative Prediction Audit**: Any negative demand forecasts from Prophet are clipped to `0.0` while preserving `raw_predicted` for full auditability.
+8. **Graceful Degraded Performance**: If Prophet dependency is missing or Stan fitting fails, the run records a structured failure state while preserving valid Moving Average baseline metrics.
+9. **Snapshot Immutability**: Benchmark results, per-date prediction points, and diagnostics are permanently stored in `forecast_runs`. Subsequent CSV imports never alter historical run snapshots.
+
+> **Disclaimer**: Historical holdout performance measures accuracy on the selected test window and dataset. It is an empirical benchmark, not a guarantee of future forecast accuracy.
+
+### 9.2 Formulas
+
+- **Mean Absolute Error (MAE)**:
+  $$\text{MAE} = \frac{1}{H} \sum_{i=1}^H |y_i - \hat{y}_i|$$
+- **Weighted Absolute Percentage Error (WAPE)**:
+  $$\text{WAPE} = \frac{\sum_{i=1}^H |y_i - \hat{y}_i|}{\sum_{i=1}^H |y_i|} \times 100\%$$
+  *(Returns `null` if $\sum |y_i| = 0$)*
+
+### 9.3 Forecasting API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/products/{id}/forecast-benchmark` | Run chronological benchmark for product. |
+| `GET` | `/api/v1/forecast-runs/{run_id}` | Retrieve persisted benchmark run snapshot. |
+| `GET` | `/api/v1/products/{id}/forecast-runs` | List historical benchmark runs with pagination. |
+| `GET` | `/api/v1/forecast-runs/{run_id}/metrics` | Retrieve detailed prediction curves & metrics. |
+
+#### Example: Execute Benchmark
+```http
+POST /api/v1/products/1/forecast-benchmark HTTP/1.1
+Content-Type: application/json
+
+{
+  "test_size": 0.2,
+  "window_size": 7,
+  "prophet_growth": "linear",
+  "prophet_seasonality_mode": "additive"
+}
+```
+
+---
+
+## 10. Running Tests & Migrations
 
 ```powershell
-# Run all 105 automated unit and integration tests
+# Run all 131 automated unit and integration tests across all phases
 .\.venv\Scripts\pytest -v
 
 # Run Ruff linter and formatter check
