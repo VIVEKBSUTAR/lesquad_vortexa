@@ -17,7 +17,8 @@ import { FormulasAssumptionsModal } from '@/components/modals/FormulasAssumption
 
 export default function Home() {
   const [products, setProducts] = useState<ProductWithComputed[]>([]);
-  const [activeTab, setActiveTab] = useState<ActiveNavTab>('overview');
+  // Default to the full-width animated landing showcase tour upon first visit
+  const [activeTab, setActiveTab] = useState<ActiveNavTab>('product');
   const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(null);
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [serviceLevel, setServiceLevel] = useState(0.95);
@@ -46,7 +47,7 @@ export default function Home() {
     };
     loadData();
 
-    // Check query params
+    // Check query params if user bookmarked a specific view
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
@@ -110,6 +111,8 @@ export default function Home() {
     );
   }
 
+  const isTour = activeTab === 'product';
+
   return (
     <div className="relative min-h-screen bg-stone selection:bg-accent/20">
       {/* Subtle filmic grain overlay */}
@@ -133,72 +136,79 @@ export default function Home() {
           isLiveBackend={isLiveBackend}
         />
 
-        {/* Sidebar + Main Content Layout */}
-        <div className="flex flex-1">
-          {/* Left Persistent Sidebar */}
-          <Sidebar
-            activeTab={activeTab}
-            onSelectTab={(tab) => {
-              setActiveTab(tab);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
-            workspaceName={workspaceName}
-            dataStatus={dataStatus}
-          />
-
-          {/* Main Area */}
-          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-            {activeTab === 'product' && (
-              <ProductShowcase
-                products={products}
-                serviceLevel={serviceLevel}
-                zScore={zScore}
-                onNavigateToTab={(tab) => {
-                  setActiveTab(tab);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                onSimulateInCrisis={handleSimulateInCrisis}
-                onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
-              />
-            )}
-
-            {activeTab === 'overview' && (
-              <OverviewView
-                products={products}
-                serviceLevel={serviceLevel}
-                zScore={zScore}
-                onNavigateToTab={(tab) => setActiveTab(tab)}
-                onSelectProduct={handleSelectProductFromOverview}
-                onOpenImportModal={() => setIsImportModalOpen(true)}
-                onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
-              />
-            )}
-
-            {activeTab === 'inventory' && (
-              <InventoryView
-                products={products}
-                onRefreshProducts={refreshProducts}
-                onSimulateInCrisis={handleSimulateInCrisis}
-                onOpenImportModal={() => setIsImportModalOpen(true)}
-                onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
-                initialSelectedProduct={selectedProduct}
-              />
-            )}
-
-            {activeTab === 'demand' && (
-              <DemandInsightsView products={products} />
-            )}
-
-            {activeTab === 'scenario' && (
-              <ScenarioLabView
-                products={products}
-                selectedProduct={selectedProduct || products[0]}
-                onSelectProduct={setSelectedProduct}
-              />
-            )}
+        {/* Conditional Layout: Full-width Landing Tour vs Persistent Dashboard Shell */}
+        {isTour ? (
+          /* Full-width Immersive Landing Page */
+          <main className="w-full">
+            <ProductShowcase
+              products={products}
+              serviceLevel={serviceLevel}
+              zScore={zScore}
+              onNavigateToTab={(tab) => {
+                setActiveTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onSimulateInCrisis={handleSimulateInCrisis}
+              onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+            />
           </main>
-        </div>
+        ) : (
+          /* Workspace Shell with Left Sidebar */
+          <div className="flex flex-1">
+            {/* Left Persistent Sidebar */}
+            <Sidebar
+              activeTab={activeTab}
+              onSelectTab={(tab) => {
+                setActiveTab(tab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+              workspaceName={workspaceName}
+              dataStatus={dataStatus}
+            />
+
+            {/* Main Dashboard Area */}
+            <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+              {activeTab === 'overview' && (
+                <OverviewView
+                  products={products}
+                  serviceLevel={serviceLevel}
+                  zScore={zScore}
+                  onNavigateToTab={(tab) => {
+                    setActiveTab(tab);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onSelectProduct={handleSelectProductFromOverview}
+                  onOpenImportModal={() => setIsImportModalOpen(true)}
+                  onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+                />
+              )}
+
+              {activeTab === 'inventory' && (
+                <InventoryView
+                  products={products}
+                  onRefreshProducts={refreshProducts}
+                  onSimulateInCrisis={handleSimulateInCrisis}
+                  onOpenImportModal={() => setIsImportModalOpen(true)}
+                  onOpenFormulasModal={() => setIsFormulasModalOpen(true)}
+                  initialSelectedProduct={selectedProduct}
+                />
+              )}
+
+              {activeTab === 'demand' && (
+                <DemandInsightsView products={products} />
+              )}
+
+              {activeTab === 'scenario' && (
+                <ScenarioLabView
+                  products={products}
+                  selectedProduct={selectedProduct || products[0]}
+                  onSelectProduct={setSelectedProduct}
+                />
+              )}
+            </main>
+          </div>
+        )}
       </div>
 
       {/* Guided 5-Step CSV Import Workflow Modal */}

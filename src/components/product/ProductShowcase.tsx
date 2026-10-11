@@ -82,6 +82,33 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
   const stressedDaysCover = Math.max(1, Math.round(simulatedStock / stressedDemand));
   const stressedRiskPct = Math.min(65, Math.round(5.0 * Math.pow(demandMultiplier, 1.8) * (1 + leadTimeDelay / 2.5)));
 
+  const bottomSentinelRef = useRef<HTMLDivElement>(null);
+  const autoNavigatedRef = useRef(false);
+
+  // Auto-transition to dashboard when user scrolls to bottom of landing tour
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sentinel = bottomSentinelRef.current;
+    if (!sentinel) return;
+
+    autoNavigatedRef.current = false;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && !autoNavigatedRef.current) {
+          autoNavigatedRef.current = true;
+          onNavigateToTab('overview');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [onNavigateToTab]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -167,27 +194,30 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
         {/* CTA Buttons & Formulas Modal Trigger */}
         <div className="hero-actions flex flex-wrap items-center justify-center gap-4 mt-8">
           <button
-            onClick={() => onNavigateToTab('inventory')}
+            onClick={() => {
+              onNavigateToTab('overview');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             className="px-6 py-3.5 rounded-xl bg-ink text-surface text-sm font-mono font-medium hover:bg-accent transition-all duration-300 flex items-center gap-2.5 shadow-md cursor-pointer hover:shadow-lg hover:-translate-y-0.5"
           >
-            <span>Manage Store Inventory</span>
+            <span>Launch Dashboard</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 
           <button
-            onClick={onOpenFormulasModal}
-            className="px-6 py-3.5 rounded-xl bg-surface border border-border text-ink text-sm font-mono font-medium hover:bg-stone transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-xs hover:-translate-y-0.5"
+            onClick={scrollToFirstFeature}
+            className="px-5 py-3.5 rounded-xl bg-surface border border-border text-ink text-sm font-mono font-medium hover:bg-stone transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-xs hover:-translate-y-0.5"
           >
-            <Calculator className="w-4 h-4 text-accent" />
-            <span>View Formulas & Assumptions</span>
+            <span>Explore Tour</span>
+            <ChevronDown className="w-4 h-4 text-accent" />
           </button>
 
           <button
-            onClick={scrollToFirstFeature}
-            className="px-4 py-3.5 rounded-xl text-muted hover:text-ink text-sm font-mono transition-colors flex items-center gap-1.5 cursor-pointer"
+            onClick={onOpenFormulasModal}
+            className="px-5 py-3.5 rounded-xl bg-stone/50 border border-border text-muted hover:text-ink text-sm font-mono font-medium hover:bg-stone transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-xs hover:-translate-y-0.5"
           >
-            <span>Explore Tour</span>
-            <ChevronDown className="w-4 h-4" />
+            <Calculator className="w-4 h-4 text-ochre" />
+            <span>Formulas & Math</span>
           </button>
         </div>
 
@@ -852,10 +882,13 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
 
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
             <button
-              onClick={() => onNavigateToTab('inventory')}
-              className="px-6 py-3.5 rounded-xl bg-surface text-ink text-sm font-mono font-medium hover:bg-stone transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-md"
+              onClick={() => {
+                onNavigateToTab('overview');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="px-6 py-3.5 rounded-xl bg-surface text-ink text-sm font-mono font-medium hover:bg-accent hover:text-surface transition-all duration-300 flex items-center gap-2 cursor-pointer shadow-md hover:shadow-lg"
             >
-              <span>Open Inventory Manager</span>
+              <span>Enter StockSense Dashboard</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
@@ -863,10 +896,29 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
               onClick={onOpenFormulasModal}
               className="px-6 py-3.5 rounded-xl border border-stone/30 text-surface text-sm font-mono font-medium hover:bg-surface/10 transition-all duration-300 flex items-center gap-2 cursor-pointer"
             >
-              <Calculator className="w-4 h-4" />
+              <Calculator className="w-4 h-4 text-accent" />
               <span>Inspect Formulas & Model</span>
             </button>
           </div>
+        </div>
+      </section>
+
+      {/* Scroll-Driven Auto-Transition Zone into Dashboard */}
+      <section
+        ref={bottomSentinelRef}
+        onClick={() => {
+          onNavigateToTab('overview');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        className="max-w-4xl mx-auto pt-14 pb-8 text-center space-y-3 cursor-pointer group"
+      >
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-stone border border-border text-xs font-mono text-muted group-hover:border-accent group-hover:text-accent transition-all shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-moss animate-pulse" />
+          <span>Tour Complete • Scroll or click to launch Fleet Dashboard</span>
+        </div>
+        <div className="flex items-center justify-center gap-2 text-xs font-mono text-muted group-hover:text-ink transition-colors">
+          <span>Entering Dark Store Operations Workspace</span>
+          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </div>
       </section>
     </div>

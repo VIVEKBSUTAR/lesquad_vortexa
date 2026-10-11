@@ -11,7 +11,10 @@ import {
   Sparkles,
   Info,
   Menu,
-  ChevronDown
+  ChevronDown,
+  ArrowRight,
+  Calculator,
+  Store
 } from 'lucide-react';
 import { ActiveNavTab } from '@/components/navigation/Header';
 
@@ -72,41 +75,60 @@ export const TopBar: React.FC<TopBarProps> = ({
     },
   }[dataStatus];
 
+  const isTour = activeTab === 'product';
+
   return (
     <header className="sticky top-0 z-40 w-full h-16 bg-surface/95 backdrop-blur-md border-b border-border px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 transition-all select-none">
-      {/* Left: Brand + Active Workspace Breadcrumb */}
+      {/* Left: Brand + Breadcrumb */}
       <div className="flex items-center gap-4">
+        {/* Brand Wordmark (clicking in dashboard returns to tour, clicking in tour scrolls to top) */}
         <button
-          onClick={() => onSelectTab('overview')}
+          onClick={() => {
+            if (isTour) {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              onSelectTab('product');
+            }
+          }}
           className="text-left font-serif text-2xl tracking-tight text-ink font-light select-none hover:text-accent transition-colors cursor-pointer flex items-center gap-2"
+          title={isTour ? 'Scroll to top' : 'Return to Product Showcase Tour'}
         >
           <span>StockSense</span>
         </button>
 
-        <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border font-mono text-xs text-muted">
-          <span className="text-[10px] uppercase tracking-wider text-muted/70">Workspace:</span>
-          <span className="font-semibold text-ink px-2 py-0.5 rounded bg-stone border border-border">
-            {workspaceName}
-          </span>
-        </div>
+        {isTour ? (
+          <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border font-mono text-xs text-muted">
+            <span className="w-1.5 h-1.5 rounded-full bg-moss animate-pulse" />
+            <span>Dark Store & Kirana Operations Tour</span>
+          </div>
+        ) : (
+          <>
+            <div className="hidden md:flex items-center gap-2 pl-3 border-l border-border font-mono text-xs text-muted">
+              <span className="text-[10px] uppercase tracking-wider text-muted/70">Workspace:</span>
+              <span className="font-semibold text-ink px-2 py-0.5 rounded bg-stone border border-border">
+                {workspaceName}
+              </span>
+            </div>
 
-        {/* Data Status Indicator */}
-        <div
-          className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono font-medium ${statusConfig.color}`}
-          title="Data Ingestion & Analytical Status"
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot} animate-pulse`} />
-          <span>{statusConfig.label}</span>
-        </div>
+            {/* Data Status Indicator */}
+            <div
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono font-medium ${statusConfig.color}`}
+              title="Data Ingestion & Analytical Status"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot} animate-pulse`} />
+              <span>{statusConfig.label}</span>
+            </div>
 
-        {/* Explicit Demo Data Label required by specification */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-stone/80 border border-border text-muted">
-          <span className="w-1.5 h-1.5 rounded-full bg-ochre" />
-          <span>Demo Data: Seeded Dark Store Fleet</span>
-        </div>
+            {/* Explicit Demo Data Label */}
+            <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-stone/80 border border-border text-muted">
+              <span className="w-1.5 h-1.5 rounded-full bg-ochre" />
+              <span>Demo Data: Seeded Dark Store Fleet</span>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Right Controls: Target SLA Policy, Import Data CTA, and Status */}
+      {/* Right Controls: SLA, Formulas & Primary Action */}
       <div className="flex items-center gap-3">
         {/* Global SLA Selector */}
         <div className="hidden sm:flex items-center gap-1 bg-stone/50 border border-border px-2 py-1 rounded-xl font-mono text-xs">
@@ -132,19 +154,47 @@ export const TopBar: React.FC<TopBarProps> = ({
           </span>
         </div>
 
-        {/* Primary CTA: Import Data */}
-        <button
-          onClick={onOpenImportModal}
-          className="px-4 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors cursor-pointer flex items-center gap-2 shadow-xs group"
-        >
-          <Upload className="w-3.5 h-3.5 text-surface group-hover:scale-110 transition-transform" />
-          <span>Import Data</span>
-        </button>
+        {/* Formulas Button in Tour mode */}
+        {isTour && (
+          <button
+            onClick={onOpenFormulasModal}
+            className="hidden sm:flex px-3 py-1.5 rounded-xl border border-border bg-stone/50 hover:bg-stone text-ink text-xs font-mono items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Calculator className="w-3.5 h-3.5 text-accent" />
+            <span>OR Formulas</span>
+          </button>
+        )}
+
+        {/* Primary CTA: In Tour mode -> Launch Dashboard; In Dashboard mode -> Import Data */}
+        {isTour ? (
+          <button
+            onClick={() => {
+              onSelectTab('overview');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="px-4 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors cursor-pointer flex items-center gap-2 shadow-sm group"
+          >
+            <span>Launch Dashboard</span>
+            <ArrowRight className="w-3.5 h-3.5 text-surface group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        ) : (
+          <button
+            onClick={onOpenImportModal}
+            className="px-4 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors cursor-pointer flex items-center gap-2 shadow-xs group"
+          >
+            <Upload className="w-3.5 h-3.5 text-surface group-hover:scale-110 transition-transform" />
+            <span>Import Data</span>
+          </button>
+        )}
 
         {/* Live Backend Connection Indicator */}
         <div
           className="p-2 rounded-xl bg-stone/60 border border-border flex items-center gap-1.5 text-[11px] font-mono"
-          title={isLiveBackend ? 'Connected to FastAPI Backend (/api/v1)' : 'Using deterministic in-browser operations research engine'}
+          title={
+            isLiveBackend
+              ? 'Connected to FastAPI Backend (/api/v1)'
+              : 'Using deterministic in-browser operations research engine'
+          }
         >
           <span
             className={`w-2 h-2 rounded-full ${
