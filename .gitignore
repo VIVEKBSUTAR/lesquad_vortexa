@@ -6,9 +6,9 @@ node_modules/
 .pnp.js
 
 # Next.js & Frontend builds
-stocksense/.next/
-stocksense/out/
-stocksense/build/
+frontend/.next/
+frontend/out/
+frontend/build/
 dist/
 coverage/
 

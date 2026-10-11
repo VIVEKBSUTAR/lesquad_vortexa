@@ -8,7 +8,7 @@
 
 ```mermaid
 graph LR
-    subgraph Frontend ["Frontend (stocksense)"]
+    subgraph Frontend ["Frontend (frontend)"]
         UI["Next.js 16 App Router (Port 3000)"]
         Client["StockSenseApiClient (src/lib/api.ts)"]
     end
@@ -36,7 +36,7 @@ graph LR
 |---|---|---|---|
 | **Backend API** | `backend/backend` | Python 3.11, FastAPI, SQLAlchemy, Alembic, Prophet | `http://127.0.0.1:8000` (`/api/v1`) |
 | **API Docs (Swagger)** | `backend/backend` | OpenAPI / Swagger UI | `http://127.0.0.1:8000/docs` |
-| **Frontend Web App** | `stocksense` | Next.js 16 (Turbopack), React 19, TypeScript, Tailwind CSS | `http://localhost:3000` |
+| **Frontend Web App** | `frontend` | Next.js 16 (Turbopack), React 19, TypeScript, Tailwind CSS | `http://localhost:3000` |
 
 ---
 
@@ -60,7 +60,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ### 2. Frontend Setup & Startup
 ```bash
 # Navigate to the frontend directory
-cd stocksense
+cd frontend
 
 # Start Next.js development server
 npm run dev
