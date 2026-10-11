@@ -361,7 +361,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {radarItems.map(({ product, riskLevel, daysUntilStockout, leadTime, mainReason, suggestedNextAction }) => {
+              {radarItems.map(({ product, riskLevel, daysUntilStockout, leadTime, mainReason, suggestedNextAction }, index) => {
                 const riskBadge = {
                   High: 'bg-brick/10 text-brick border-brick/30',
                   Medium: 'bg-ochre/10 text-ochre border-ochre/30',
@@ -371,7 +371,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
                 return (
                   <tr
-                    key={product.id}
+                    key={`${product.id}-${product.sku}-${index}`}
                     onClick={() => handleRowClick(product)}
                     className="hover:bg-stone/50 cursor-pointer transition-colors group"
                   >
@@ -561,8 +561,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 onChange={(e) => setSelectedChartSku(e.target.value)}
                 className="px-3 py-1.5 rounded-xl bg-surface border border-border text-ink font-mono text-xs focus:outline-none focus:border-accent cursor-pointer shadow-xs"
               >
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
+                {products.map((p, idx) => (
+                  <option key={`overview-select-${p.id}-${p.sku}-${idx}`} value={p.id}>
                     {p.name} ({p.sku})
                   </option>
                 ))}

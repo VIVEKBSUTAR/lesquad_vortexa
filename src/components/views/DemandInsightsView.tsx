@@ -241,8 +241,8 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
                   }}
                   className="bg-stone text-ink border border-border rounded-xl px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
                 >
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
+                  {products.map((p, idx) => (
+                    <option key={`demand-prod-${p.id}-${p.sku}-${idx}`} value={p.id}>
                       {p.sku}
                     </option>
                   ))}
@@ -330,8 +330,8 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
                   className="bg-stone text-ink border border-border rounded-xl px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
                 >
                   <option value="all">All SKUs</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
+                  {products.map((p, idx) => (
+                    <option key={`demand-filter-${p.id}-${p.sku}-${idx}`} value={p.id}>
                       {p.sku}
                     </option>
                   ))}

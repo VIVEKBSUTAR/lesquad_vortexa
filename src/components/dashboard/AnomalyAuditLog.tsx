@@ -119,8 +119,8 @@ export const AnomalyAuditLog: React.FC<AnomalyAuditLogProps> = ({ products }) =>
             className="bg-stone text-ink border border-border rounded-xl px-3 py-1.5 text-xs font-mono font-medium focus:outline-none focus:border-accent cursor-pointer"
           >
             <option value="all">All SKUs</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
+            {products.map((p, idx) => (
+              <option key={`anomaly-filter-${p.id}-${p.sku}-${idx}`} value={p.id}>
                 {p.sku}
               </option>
             ))}

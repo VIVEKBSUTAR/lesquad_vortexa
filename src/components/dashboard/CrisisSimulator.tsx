@@ -83,8 +83,8 @@ export const CrisisSimulator: React.FC<CrisisSimulatorProps> = ({
             }}
             className="bg-stone text-ink border border-border rounded-lg px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-accent cursor-pointer"
           >
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
+            {products.map((p, idx) => (
+              <option key={`crisis-prod-${p.id}-${p.sku}-${idx}`} value={p.id}>
                 {p.sku} - {p.name}
               </option>
             ))}

@@ -70,7 +70,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
           return (
             <div
-              key={p.id}
+              key={`grid-prod-${p.id}-${p.sku}`}
               onClick={() => onSelectProduct(p)}
               className="bg-surface rounded-2xl border border-border p-5 hover:border-ink hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group"
             >
