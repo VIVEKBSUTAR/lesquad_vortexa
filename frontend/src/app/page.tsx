@@ -87,9 +87,10 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleImportComplete = (importedDatasetName: string) => {
+  const handleImportComplete = async (importedDatasetName: string) => {
     setWorkspaceName(importedDatasetName || 'DarkStore Fleet Alpha');
     setDataStatus('analysis_ready');
+    await refreshProducts();
     setActiveTab('overview');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

@@ -82,6 +82,7 @@ export interface ImportPreviewResponse {
     row_status: 'valid' | 'warning' | 'error';
     messages: string[];
   }>;
+  raw_records?: Array<Record<string, any>>;
   errors: Array<{
     row_number: number;
     field: string;
@@ -563,6 +564,7 @@ class StockSenseApiClient {
             date_range: data.summary?.date_range,
           },
           columns_detected: Object.keys(data.preview_records?.[0] || {}),
+          raw_records: data.preview_records || [],
           preview_rows: (data.preview_records || []).map((r: any, idx: number) => ({
             row_number: r.row_number || idx + 1,
             sku: r.sku || '',

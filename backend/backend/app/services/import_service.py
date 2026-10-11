@@ -325,11 +325,11 @@ class ImportService:
                         row_number=row_idx,
                         column_name="sku",
                         error_code="SKU_ALREADY_EXISTS",
-                        message=f"Product with SKU '{sku}' already exists in database. Duplicate policy: silent overwrites are not permitted.",
-                        is_warning=False,
+                        message=f"Product with SKU '{sku}' already exists in database; catalogue attributes will be updated on confirm.",
+                        is_warning=True,
                     )
                 )
-                row_has_blocking_error = True
+                seen_skus_in_file[sku] = row_idx
             else:
                 seen_skus_in_file[sku] = row_idx
 
@@ -638,6 +638,7 @@ class ImportService:
                     }
                 )
 
+        staged_new_skus = [s for s in seen_skus_in_file.keys() if s not in db_skus]
         return cls._persist_and_return_preview(
             import_id=import_id,
             file_type="products",
@@ -647,6 +648,7 @@ class ImportService:
             diagnostics=diagnostics,
             rejected_rows=rejected_rows_count,
             db=db,
+            extra_summary={"staged_new_skus": staged_new_skus},
         )
 
     @classmethod
@@ -770,6 +772,23 @@ class ImportService:
         db_products: Dict[str, int] = {
             sku: pid for (sku, pid) in db.query(Product.sku, Product.id).all()
         }
+        # Also recognize SKUs from staged product imports pending confirmation
+        staged_prod_imports = (
+            db.query(DataImport)
+            .filter(
+                DataImport.file_type == "products",
+                DataImport.status == "previewed",
+                DataImport.can_confirm == True,
+            )
+            .all()
+        )
+        for spi in staged_prod_imports:
+            if spi.staged_data:
+                for srec in spi.staged_data:
+                    staged_sku = srec.get("sku")
+                    if staged_sku and staged_sku not in db_products:
+                        db_products[staged_sku] = 0
+
         existing_demand_keys: Set[Tuple[str, str]] = {
             (sku, d.isoformat())
             for (sku, d) in db.query(Product.sku, DemandRecord.date)
@@ -892,11 +911,11 @@ class ImportService:
                             row_number=row_idx,
                             column_name="date",
                             error_code="DEMAND_ALREADY_EXISTS",
-                            message=f"Demand record for SKU '{sku}' on date '{date_val.isoformat()}' already exists in database. Duplicate policy: silent overwrites are not permitted.",
-                            is_warning=False,
+                            message=f"Demand record for SKU '{sku}' on date '{date_val.isoformat()}' already exists in database; observation will be updated on confirm.",
+                            is_warning=True,
                         )
                     )
-                    row_has_blocking_error = True
+                    seen_demand_keys_in_file[demand_key] = row_idx
                 else:
                     seen_demand_keys_in_file[demand_key] = row_idx
 
@@ -1123,6 +1142,23 @@ class ImportService:
         db_products: Dict[str, int] = {
             sku: pid for (sku, pid) in db.query(Product.sku, Product.id).all()
         }
+        # Also recognize SKUs from staged product imports pending confirmation
+        staged_prod_imports = (
+            db.query(DataImport)
+            .filter(
+                DataImport.file_type == "products",
+                DataImport.status == "previewed",
+                DataImport.can_confirm == True,
+            )
+            .all()
+        )
+        for spi in staged_prod_imports:
+            if spi.staged_data:
+                for srec in spi.staged_data:
+                    staged_sku = srec.get("sku")
+                    if staged_sku and staged_sku not in db_products:
+                        db_products[staged_sku] = 0
+
         seen_skus_in_file: Dict[str, int] = {}
         total_data_rows = 0
         rejected_rows_count = 0
@@ -1294,6 +1330,7 @@ class ImportService:
         diagnostics: List[RowDiagnostic],
         rejected_rows: int,
         db: Session,
+        extra_summary: Optional[Dict[str, Any]] = None,
     ) -> ImportPreviewResponse:
         """Persist import preview tracking records and format preview response."""
         errors = [d for d in diagnostics if not d.is_warning]
@@ -1302,7 +1339,15 @@ class ImportService:
         can_confirm = len(errors) == 0 and len(accepted_records) > 0
         status_val = "previewed" if (can_confirm or len(accepted_records) > 0) else "rejected"
 
-        # Create DataImport tracking record
+        summary_dict = {
+            "has_blocking_errors": len(errors) > 0,
+            "can_confirm": can_confirm,
+            "error_count": len(errors),
+            "warning_count": len(warnings),
+        }
+        if extra_summary:
+            summary_dict.update(extra_summary)
+
         data_import = DataImport(
             id=import_id,
             file_type=file_type,
@@ -1316,12 +1361,7 @@ class ImportService:
             warning_rows=len(warnings),
             can_confirm=can_confirm,
             staged_data=accepted_records if can_confirm else [],
-            summary={
-                "has_blocking_errors": len(errors) > 0,
-                "can_confirm": can_confirm,
-                "error_count": len(errors),
-                "warning_count": len(warnings),
-            },
+            summary=summary_dict,
         )
         db.add(data_import)
         db.flush()
@@ -1417,19 +1457,23 @@ class ImportService:
         # Revalidate against current database state before writing
         # -------------------------------------------------------------
         if import_record.file_type == "products":
-            staged_skus = [r["sku"] for r in staged_rows]
-            existing_skus = db.query(Product.sku).filter(Product.sku.in_(staged_skus)).all()
-            if existing_skus:
-                conflicts = [s[0] for s in existing_skus]
-                import_record.status = "failed"
-                db.commit()
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail={
-                        "code": "REVALIDATION_FAILED",
-                        "message": f"Revalidation failed: Product SKU(s) {conflicts} were created in database after preview.",
-                    },
-                )
+            # Revalidate: if an SKU was new at preview time but created in database prior to confirmation, reject conflict
+            staged_new_skus = (import_record.summary or {}).get("staged_new_skus", [])
+            if staged_new_skus:
+                conflicts = [
+                    s[0]
+                    for s in db.query(Product.sku).filter(Product.sku.in_(staged_new_skus)).all()
+                ]
+                if conflicts:
+                    import_record.status = "failed"
+                    db.commit()
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail={
+                            "code": "REVALIDATION_FAILED",
+                            "message": f"Revalidation failed: Product SKU(s) {conflicts} were created in database after preview.",
+                        },
+                    )
         elif import_record.file_type == "demand":
             staged_skus = list({r["sku"] for r in staged_rows})
             db_products = {
@@ -1449,29 +1493,6 @@ class ImportService:
                         "message": f"Revalidation failed: Product SKU(s) {missing_skus} no longer exist in database.",
                     },
                 )
-
-            # Check if any (sku, date) was inserted since preview
-            for r in staged_rows:
-                p_id = db_products[r["sku"]]
-                d_date = date.fromisoformat(r["date"])
-                exists = (
-                    db.query(DemandRecord.id)
-                    .filter(
-                        DemandRecord.product_id == p_id,
-                        DemandRecord.date == d_date,
-                    )
-                    .first()
-                )
-                if exists:
-                    import_record.status = "failed"
-                    db.commit()
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "code": "REVALIDATION_FAILED",
-                            "message": f"Revalidation failed: Demand record for SKU '{r['sku']}' on date '{r['date']}' was already inserted after preview.",
-                        },
-                    )
         elif import_record.file_type == "suppliers":
             staged_skus = list({r["sku"] for r in staged_rows})
             db_products_map = {
@@ -1496,52 +1517,99 @@ class ImportService:
             persisted_count = 0
             if import_record.file_type == "products":
                 for r in staged_rows:
-                    product = Product(
-                        sku=r["sku"],
-                        name=r["product_name"],
-                        category=r.get("category"),
-                        unit_of_measure=r.get("unit_of_measure", "piece"),
-                        current_stock=r.get("on_hand_qty", 0),
-                        committed_qty=r.get("committed_qty", 0),
-                        unit_cost=Decimal(str(r["unit_cost"]))
-                        if r.get("unit_cost") is not None
-                        else None,
-                        ordering_cost=Decimal(str(r["ordering_cost"]))
-                        if r.get("ordering_cost") is not None
-                        else None,
-                        holding_cost_rate=Decimal(str(r["holding_cost_rate"]))
-                        if r.get("holding_cost_rate") is not None
-                        else None,
-                        holding_cost_per_unit_year=Decimal(str(r["holding_cost_per_unit_year"]))
-                        if r.get("holding_cost_per_unit_year") is not None
-                        else None,
-                        target_service_level=r.get(
-                            "target_service_level", settings.DEFAULT_SERVICE_LEVEL
-                        ),
-                        minimum_order_qty=r.get("minimum_order_qty"),
-                        pack_size=r.get("pack_size"),
-                        lead_time_days=r.get("lead_time_days"),
-                        lead_time_stddev_days=r.get("lead_time_stddev_days"),
-                        import_id=import_record.id,
-                    )
-                    db.add(product)
-                    persisted_count += 1
+                    existing_prod = db.query(Product).filter(Product.sku == r["sku"]).first()
+                    if existing_prod:
+                        existing_prod.name = r["product_name"]
+                        if r.get("category"):
+                            existing_prod.category = r.get("category")
+                        if r.get("unit_of_measure"):
+                            existing_prod.unit_of_measure = r.get("unit_of_measure")
+                        if r.get("on_hand_qty") is not None:
+                            existing_prod.current_stock = r["on_hand_qty"]
+                        if r.get("committed_qty") is not None:
+                            existing_prod.committed_qty = r["committed_qty"]
+                        if r.get("unit_cost") is not None:
+                            existing_prod.unit_cost = Decimal(str(r["unit_cost"]))
+                        if r.get("ordering_cost") is not None:
+                            existing_prod.ordering_cost = Decimal(str(r["ordering_cost"]))
+                        if r.get("holding_cost_rate") is not None:
+                            existing_prod.holding_cost_rate = Decimal(str(r["holding_cost_rate"]))
+                        if r.get("holding_cost_per_unit_year") is not None:
+                            existing_prod.holding_cost_per_unit_year = Decimal(str(r["holding_cost_per_unit_year"]))
+                        if r.get("target_service_level") is not None:
+                            existing_prod.target_service_level = r["target_service_level"]
+                        if r.get("minimum_order_qty") is not None:
+                            existing_prod.minimum_order_qty = r["minimum_order_qty"]
+                        if r.get("pack_size") is not None:
+                            existing_prod.pack_size = r["pack_size"]
+                        if r.get("lead_time_days") is not None:
+                            existing_prod.lead_time_days = r["lead_time_days"]
+                        if r.get("lead_time_stddev_days") is not None:
+                            existing_prod.lead_time_stddev_days = r["lead_time_stddev_days"]
+                        existing_prod.import_id = import_record.id
+                        persisted_count += 1
+                    else:
+                        product = Product(
+                            sku=r["sku"],
+                            name=r["product_name"],
+                            category=r.get("category"),
+                            unit_of_measure=r.get("unit_of_measure", "piece"),
+                            current_stock=r.get("on_hand_qty", 0),
+                            committed_qty=r.get("committed_qty", 0),
+                            unit_cost=Decimal(str(r["unit_cost"]))
+                            if r.get("unit_cost") is not None
+                            else None,
+                            ordering_cost=Decimal(str(r["ordering_cost"]))
+                            if r.get("ordering_cost") is not None
+                            else None,
+                            holding_cost_rate=Decimal(str(r["holding_cost_rate"]))
+                            if r.get("holding_cost_rate") is not None
+                            else None,
+                            holding_cost_per_unit_year=Decimal(str(r["holding_cost_per_unit_year"]))
+                            if r.get("holding_cost_per_unit_year") is not None
+                            else None,
+                            target_service_level=r.get(
+                                "target_service_level", settings.DEFAULT_SERVICE_LEVEL
+                            ),
+                            minimum_order_qty=r.get("minimum_order_qty"),
+                            pack_size=r.get("pack_size"),
+                            lead_time_days=r.get("lead_time_days"),
+                            lead_time_stddev_days=r.get("lead_time_stddev_days"),
+                            import_id=import_record.id,
+                        )
+                        db.add(product)
+                        persisted_count += 1
 
             elif import_record.file_type == "demand":
                 db_products = {p.sku: p.id for p in db.query(Product.sku, Product.id).all()}
                 for r in staged_rows:
                     p_id = db_products[r["sku"]]
-                    demand = DemandRecord(
-                        product_id=p_id,
-                        date=date.fromisoformat(r["date"]),
-                        quantity=float(r["units_sold"]),
-                        stockout_flag=bool(r.get("stockout_flag", False)),
-                        promotion_flag=bool(r.get("promotion_flag", False)),
-                        notes=r.get("notes"),
-                        import_id=import_record.id,
+                    d_date = date.fromisoformat(r["date"])
+                    existing_demand = (
+                        db.query(DemandRecord)
+                        .filter(DemandRecord.product_id == p_id, DemandRecord.date == d_date)
+                        .first()
                     )
-                    db.add(demand)
-                    persisted_count += 1
+                    if existing_demand:
+                        existing_demand.quantity = float(r["units_sold"])
+                        existing_demand.stockout_flag = bool(r.get("stockout_flag", False))
+                        existing_demand.promotion_flag = bool(r.get("promotion_flag", False))
+                        if r.get("notes") is not None:
+                            existing_demand.notes = r.get("notes")
+                        existing_demand.import_id = import_record.id
+                        persisted_count += 1
+                    else:
+                        demand = DemandRecord(
+                            product_id=p_id,
+                            date=d_date,
+                            quantity=float(r["units_sold"]),
+                            stockout_flag=bool(r.get("stockout_flag", False)),
+                            promotion_flag=bool(r.get("promotion_flag", False)),
+                            notes=r.get("notes"),
+                            import_id=import_record.id,
+                        )
+                        db.add(demand)
+                        persisted_count += 1
 
             elif import_record.file_type == "suppliers":
                 db_prods = {p.sku: p for p in db.query(Product).all()}
