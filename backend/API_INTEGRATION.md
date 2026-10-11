@@ -1,6 +1,8 @@
 # StockSense Backend — Frontend API Integration Guide
 
-This guide provides the complete REST API contract, workflows, configuration, and integration instructions for the independently developed frontend communicating with the **StockSense Backend**.
+This guide provides the complete, audited REST API contract, workflows, configuration, and integration instructions for the independently developed frontend communicating with the **StockSense Backend**.
+
+All endpoint paths, HTTP methods, parameter names, and schemas in this document have been audited directly against the FastAPI application and Pydantic models.
 
 ---
 
@@ -128,10 +130,9 @@ Internal server exceptions mask database credentials, SQL statements, and intern
 
 | Method | Endpoint | Query Parameters | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/products` | `page` (int, default 1), `limit` (int, default 50) | Paginated list of products |
-| `GET` | `/api/v1/products/{product_id}` | — | Product detail including lead time, costs, and stock |
-| `GET` | `/api/v1/products/{product_id}/demand` | `start_date` (YYYY-MM-DD), `end_date` (YYYY-MM-DD) | Chronological demand history |
-| `POST` | `/api/v1/products/seed-demo-data` | — | Seeds demonstration retail SKUs & demand history |
+| `GET` | `/api/v1/products` | None | Returns complete array of products (`List[ProductRead]`) |
+| `GET` | `/api/v1/products/{product_id}` | None | Product detail including lead time, costs, and stock |
+| `GET` | `/api/v1/products/{product_id}/demand` | None | Chronological daily demand records (`List[DemandRecordRead]`) |
 
 #### `GET /api/v1/products/{product_id}` Response Example:
 ```json
@@ -155,33 +156,62 @@ Internal server exceptions mask database credentials, SQL statements, and intern
 
 ---
 
-### C. CSV Imports (Preview & Transactional Confirmation)
+### C. CSV Imports (Two-Phase Preview & Confirmation)
 
-The import workflow is **two-phase**: validate/preview first, confirm write second. This prevents silent partial imports or dirty writes.
+The import workflow is strictly **two-phase**: upload & preview first to obtain an `import_id`, then execute a transactional confirm using that `import_id`. This prevents silent partial imports or dirty writes.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/imports/preview` | Upload and preview CSV (`file_type` query: `products`, `demand`, or `suppliers`) |
+| `POST` | `/api/v1/imports/products/preview` | Upload and preview products CSV |
+| `POST` | `/api/v1/imports/demand/preview` | Upload and preview daily demand CSV |
+| `POST` | `/api/v1/imports/suppliers/preview` | Upload and preview supplier settings CSV |
+| `POST` | `/api/v1/imports/{import_id}/confirm` | Transactionally persist records from validated import job |
+| `GET` | `/api/v1/imports/{import_id}` | Retrieve durable status, counts, and diagnostic summary of import job |
 
 #### 1. Preview CSV Upload
-`POST /api/v1/imports/preview`
-- Form-data: `file` (multipart/form-data, .csv format, max 5 MB, max 5,000 rows)
-- Query: `dataset_type` (`products`, `demand_records`, `suppliers`, or `auto`)
-
-Response provides row count, sample preview rows, schema validation status, and actionable per-row errors.
-
-#### 2. Confirm CSV Import
-`POST /api/v1/imports/confirm`
-- Form-data: `file` (multipart/form-data)
-- Query: `dataset_type`
-
-Executes within a database transaction. If any validation constraint fails, the entire transaction rolls back.
-
+`POST /api/v1/imports/preview?file_type=demand`
+- **Form-data**: `file` (multipart/form-data, `.csv` format, max 5 MB, max 5,000 rows)
+- **Response**: `ImportPreviewResponse`
 ```json
 {
   "import_id": "imp_6b2d13e0",
-  "dataset_type": "demand_records",
+  "filename": "daily_demand.csv",
+  "file_type": "demand",
+  "total_rows": 120,
+  "valid_rows": 120,
+  "error_rows": 0,
+  "warning_rows": 0,
+  "can_confirm": true,
+  "preview_rows": [
+    {
+      "row_number": 1,
+      "raw_data": {"sku": "SKU-BEV-001", "date": "2026-01-01", "quantity": "25"},
+      "errors": [],
+      "warnings": []
+    }
+  ],
+  "row_errors": []
+}
+```
+
+#### 2. Confirm CSV Import
+`POST /api/v1/imports/imp_6b2d13e0/confirm`
+- **Path Parameter**: `import_id`
+- **Request Body**: None
+- **Response**: `ImportConfirmResponse`
+```json
+{
+  "import_id": "imp_6b2d13e0",
+  "file_type": "demand",
   "status": "success",
-  "rows_processed": 120,
-  "rows_inserted": 120,
-  "rows_updated": 0,
-  "errors": []
+  "persisted_count": 120,
+  "summary": "Import imp_6b2d13e0 confirmed: 120 demand records successfully written.",
+  "diagnostics": {
+    "total_rows": 120,
+    "valid_rows": 120,
+    "error_rows": 0
+  }
 }
 ```
 
@@ -193,121 +223,163 @@ StockSense calculates explainable, deterministic inventory replenishment recomme
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/v1/products/{product_id}/recommendation` | Calculate and persist a new recommendation |
-| `GET` | `/api/v1/recommendations` | List paginated recommendations (optional `product_id`, `status` filters) |
-| `GET` | `/api/v1/recommendations/{recommendation_id}` | Retrieve recommendation details |
-| `PATCH` | `/api/v1/recommendations/{recommendation_id}/status` | Update status (`pending`, `approved`, `rejected`, `ordered`) |
+| `POST` | `/api/v1/products/{product_id}/recommendations/calculate` | Calculate and persist a new recommendation snapshot |
+| `GET` | `/api/v1/products/{product_id}/recommendations/latest` | Retrieve latest recommendation snapshot for a product |
+| `GET` | `/api/v1/products/{product_id}/recommendations` | Retrieve recommendation history for a product (`limit`, `offset`) |
+| `GET` | `/api/v1/recommendations` | Overview list across products (`latest_only`, `urgency`, `status`, `reorder_only`, `limit`, `offset`) |
+| `GET` | `/api/v1/recommendations/{recommendation_id}` | Retrieve a specific recommendation snapshot by primary key ID |
+| `PATCH` | `/api/v1/recommendations/{recommendation_id}/status` | Update review status (`pending`, `approved`, `rejected`) |
 
-#### Calculation Request:
-`POST /api/v1/products/1/recommendation`
+#### 1. Calculate Recommendation Request:
+`POST /api/v1/products/1/recommendations/calculate`
 ```json
 {
-  "service_level": 0.95,
+  "target_service_level": 0.95,
   "lead_time_days": 5,
-  "lead_time_stddev": 1.0,
-  "demand_history_days": 90
+  "lead_time_stddev_days": 1.0
 }
 ```
+*(All fields in `RecommendationCalculateRequest` are optional overrides; if omitted or `{}` is passed, catalog and supplier default parameters are used).*
 
-#### Calculation Response:
+#### 2. Calculate Recommendation Response (`RecommendationRead`):
 ```json
 {
   "id": 14,
   "product_id": 1,
-  "sku": "SKU-BEV-001",
-  "product_name": "Premium Sparkling Water 500ml",
-  "service_level": 0.95,
-  "safety_factor_z": 1.6449,
-  "lead_time_days": 5,
-  "lead_time_stddev": 1.0,
-  "daily_demand_mean": 24.5,
-  "daily_demand_stddev": 6.2,
+  "recommended_order_quantity": 48,
+  "current_stock": 145,
   "safety_stock": 28,
   "reorder_point": 151,
-  "current_stock": 145,
-  "inventory_position": 145,
-  "order_required": true,
-  "recommended_order_quantity": 48,
-  "economic_order_quantity": 42.8,
-  "deficit": 6,
-  "moq": 24,
-  "pack_size": 12,
+  "inventory_position": 145.0,
+  "urgency": "high",
+  "explanation": "Current inventory position (145) is at or below reorder point (151). Recommended order quantity of 48 units brings position above reorder point with MOQ and pack size rounding applied.",
+  "assumptions": {
+    "service_level": 0.95,
+    "z_score": 1.644854,
+    "lead_time_days": 5.0,
+    "lead_time_stddev": 1.0,
+    "mean_daily_demand": 24.5,
+    "daily_demand_stddev": 6.2,
+    "eoq": 42.8,
+    "moq": 24,
+    "pack_size": 12,
+    "in_transit_inventory_included": false,
+    "in_transit_limitation_note": "In-transit purchase orders are currently assumed unavailable and not added to inventory position."
+  },
   "status": "pending",
-  "explanation": "Inventory position (145) is below ROP (151). Replenishment required. Base quantity 42.8 adjusted to MOQ 24 and rounded to multiple of pack size 12 resulting in recommended order of 48 units.",
-  "assumptions_and_limitations": [
-    "Safety stock computed using variable lead time formula.",
-    "In-transit purchase orders are currently assumed unavailable and not added to inventory position."
-  ],
-  "created_at": "2026-10-11T12:00:00Z"
+  "formula_version": "v1.0",
+  "calculated_at": "2026-10-11T12:00:00Z",
+  "input_snapshot": {
+    "current_stock": 145,
+    "lead_time_days": 5,
+    "lead_time_stddev": 1.0,
+    "target_service_level": 0.95
+  },
+  "mean_daily_demand": 24.5,
+  "daily_demand_stddev": 6.2,
+  "average_lead_time_days": 5.0,
+  "lead_time_stddev_days": 1.0
 }
 ```
 
-#### Update Status:
+#### 3. Update Recommendation Status:
 `PATCH /api/v1/recommendations/14/status`
 ```json
 {
-  "status": "approved",
-  "notes": "Approved by Inventory Manager for Monday PO batch"
+  "status": "approved"
 }
 ```
+*(Allowed status values in `RecommendationStatusUpdateRequest`: `"pending"`, `"approved"`, `"rejected"`).*
 
 ---
 
 ### E. Demand Anomaly Review
 
-Deterministic anomaly detection based on rolling z-score statistics and IQR fences, paired with human-in-the-loop audit review tracking. Raw demand records remain strictly immutable.
+Deterministic anomaly detection based on rolling Median/MAD and IQR statistics, paired with human-in-the-loop review audit tracking. Raw source demand records remain strictly immutable.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/v1/products/{product_id}/anomalies/detect` | Run anomaly detection on product demand |
-| `GET` | `/api/v1/anomalies` | List anomaly reviews (filters: `product_id`, `review_status`, `anomaly_type`) |
-| `GET` | `/api/v1/anomalies/summary` | Aggregate counts: pending, confirmed, false-positive, and suppressed anomalies |
-| `GET` | `/api/v1/anomalies/{review_id}` | Retrieve anomaly review item |
-| `PATCH` | `/api/v1/anomalies/{review_id}/review` | Submit human review decision |
+| `POST` | `/api/v1/products/{product_id}/anomalies/detect` | Execute deterministic anomaly detector on product demand history |
+| `GET` | `/api/v1/products/{product_id}/anomalies` | List anomaly candidates for product (`review_status`, `classification`, `skip`, `limit`) |
+| `GET` | `/api/v1/products/{product_id}/anomalies/summary` | Summary counts for a single product |
+| `GET` | `/api/v1/anomalies` | Global anomaly list across all products (`product_id`, `sku`, `review_status`, `skip`, `limit`) |
+| `GET` | `/api/v1/anomalies/summary` | Global aggregate counts across catalog (`total`, `pending`, `reviewed`, `dismissed`) |
+| `GET` | `/api/v1/anomalies/{anomaly_id}` | Retrieve complete anomaly candidate detail and detector evidence |
+| `PATCH` | `/api/v1/anomalies/{anomaly_id}/review` | Submit user-confirmed classification and review notes |
+| `POST` | `/api/v1/anomalies/{anomaly_id}/reviews` | Spec alias for submitting review decision |
+| `POST` | `/api/v1/anomalies/{anomaly_id}/dismiss` | Dismiss anomaly candidate as false positive or normal variance |
 
-#### Human Review Submission:
+#### 1. Human Review Submission:
 `PATCH /api/v1/anomalies/42/review`
 ```json
 {
-  "review_status": "confirmed_promo",
-  "reviewed_by": "RetailOpsLead",
-  "notes": "Verified promotional spike during regional summer festival."
+  "classification": "promotion",
+  "review_status": "reviewed",
+  "reviewer": "RetailOpsLead",
+  "reviewer_notes": "Verified promotional spike during regional summer festival.",
+  "user_treatment": "clamp",
+  "adjusted_quantity": 40.0
+}
+```
+*(Valid `classification` values: `"promotion"`, `"data_error"`, `"unknown"`. Valid `review_status` values: `"pending"`, `"reviewed"`, `"dismissed"`).*
+
+#### 2. Anomaly Summary Response (`AnomalySummaryResponse`):
+```json
+{
+  "product_id": null,
+  "sku": null,
+  "total_anomalies": 18,
+  "pending_count": 5,
+  "reviewed_count": 11,
+  "dismissed_count": 2,
+  "by_classification": {
+    "promotion": 8,
+    "data_error": 3,
+    "unknown": 7
+  },
+  "by_type": {
+    "spike": 12,
+    "drop": 6
+  }
 }
 ```
 
 ---
 
-### F. Forecast Benchmark & Model Comparison
+### F. Forecast Benchmark & Model Tournament
 
 StockSense provides a **chronological holdout benchmarking engine** comparing a Moving Average baseline against Prophet.
 > **Key Distinctions**:
 > 1. This evaluates model accuracy over an **unseen historical holdout window** (e.g. 20% most recent historical observations).
 > 2. It compares MAE and WAPE on identical holdout dates.
-> 3. It is a benchmark for model selection, NOT a black-box future projection. Missing dates are never silently filled with zeroes.
+> 3. It is a benchmark for model selection, NOT an unconstrained future projection. Missing dates are never silently filled with zeroes.
 
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/v1/products/{product_id}/forecast-benchmark` | Run holdout evaluation & model tournament |
-| `GET` | `/api/v1/forecast-runs` | List benchmark runs across products (optional `product_id`) |
-| `GET` | `/api/v1/products/{product_id}/forecast-runs` | List benchmark runs for a product |
-| `GET` | `/api/v1/forecast-runs/{forecast_run_id}` | Retrieve benchmark run summary |
-| `GET` | `/api/v1/forecast-runs/{forecast_run_id}/metrics` | Detailed per-day evaluation points & error metrics |
+| `GET` | `/api/v1/forecast-runs` | List benchmark runs across products (query params: `product_id`, `page`, `limit`) |
+| `GET` | `/api/v1/products/{product_id}/forecast-runs` | List benchmark runs for a product (query params: `page`, `limit`) |
+| `GET` | `/api/v1/forecast-runs/{run_id}` | Retrieve benchmark run summary |
+| `GET` | `/api/v1/forecast-runs/{run_id}/metrics` | Detailed per-day evaluation points & error metrics |
 
-#### Trigger Benchmark:
+#### 1. Trigger Benchmark:
 `POST /api/v1/products/1/forecast-benchmark`
 ```json
 {
   "test_size": 0.20,
-  "window_size": 7
+  "window_size": 7,
+  "prophet_growth": "linear",
+  "prophet_seasonality_mode": "additive"
 }
 ```
 
-#### Benchmark Summary Response:
+#### 2. Benchmark Summary Response (`ForecastRunRead`):
 ```json
 {
   "id": 5,
   "product_id": 1,
   "sku": "SKU-BEV-001",
+  "product_name": "Premium Sparkling Water 500ml",
   "status": "completed",
   "baseline_method": "moving_average",
   "candidate_method": "prophet",
@@ -315,12 +387,22 @@ StockSense provides a **chronological holdout benchmarking engine** comparing a 
   "wape_baseline": 0.124,
   "mae_candidate": 2.15,
   "wape_candidate": 0.078,
+  "training_start_date": "2026-01-01",
+  "training_end_date": "2026-08-15",
+  "holdout_start_date": "2026-08-16",
+  "holdout_end_date": "2026-09-10",
   "comparison": {
     "winning_model": "prophet",
-    "mae_improvement_pct": 37.13,
+    "mae_difference": -1.27,
+    "wape_difference": -0.046,
+    "relative_improvement_pct": 37.13,
     "comparison_valid": true,
-    "summary_notes": "Prophet achieved lower holdout MAE (2.15 vs 3.42) over 18 holdout observations."
+    "interpretation": "Prophet outperformed Moving Average with a 37.13% reduction in MAE across 18 holdout observations."
   },
+  "assumptions_and_limitations": [
+    "Chronological holdout benchmark evaluates past accuracy on unseen historical window; this is not a future demand forecast.",
+    "Observed recorded demand dates only. Missing calendar dates are not imputed as zero."
+  ],
   "created_at": "2026-10-11T12:05:00Z"
 }
 ```
@@ -333,13 +415,13 @@ A discrete-event daily replenishment simulator that stress-tests inventory avail
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/v1/products/{product_id}/scenarios` | Run and save a stressed scenario simulation |
-| `GET` | `/api/v1/scenarios` | List saved scenarios across products (optional `product_id`) |
-| `GET` | `/api/v1/products/{product_id}/scenarios` | List saved scenarios for a specific product |
+| `POST` | `/api/v1/products/{product_id}/scenarios` | Execute and save a stressed scenario simulation |
+| `GET` | `/api/v1/scenarios` | List saved scenarios across products (query params: `product_id`, `page`, `limit`) |
+| `GET` | `/api/v1/products/{product_id}/scenarios` | List saved scenarios for a specific product (`page`, `limit`) |
 | `GET` | `/api/v1/scenarios/{scenario_id}` | Retrieve complete daily timeline and replenishment events |
 | `POST` | `/api/v1/products/{product_id}/scenarios/compare` | Compare baseline vs multiple stress scenarios |
 
-#### Run Scenario Simulation:
+#### 1. Run Scenario Simulation:
 `POST /api/v1/products/1/scenarios`
 ```json
 {
@@ -351,7 +433,7 @@ A discrete-event daily replenishment simulator that stress-tests inventory avail
 }
 ```
 
-#### Multi-Scenario Comparison:
+#### 2. Multi-Scenario Comparison:
 `POST /api/v1/products/1/scenarios/compare`
 ```json
 {
@@ -371,7 +453,7 @@ A discrete-event daily replenishment simulator that stress-tests inventory avail
 }
 ```
 
-#### Comparison Response:
+#### 3. Comparison Response (`ScenarioComparisonResponse`):
 ```json
 {
   "product_id": 1,
@@ -385,10 +467,14 @@ A discrete-event daily replenishment simulator that stress-tests inventory avail
     "supplier_delay_days": 0,
     "ending_inventory": 45,
     "total_unmet_demand": 0,
+    "unmet_demand_difference_vs_baseline": 0,
     "stockout_days_count": 0,
+    "stockout_days_difference_vs_baseline": 0,
     "fulfillment_rate_pct": 100.0,
     "total_units_ordered": 240,
-    "total_inventory_cost": 312.50
+    "total_inventory_cost": 312.50,
+    "cost_difference_vs_baseline": 0.0,
+    "first_stockout_date": null
   },
   "comparisons": [
     {
@@ -403,7 +489,8 @@ A discrete-event daily replenishment simulator that stress-tests inventory avail
       "fulfillment_rate_pct": 100.0,
       "total_units_ordered": 264,
       "total_inventory_cost": 338.20,
-      "cost_difference_vs_baseline": 25.70
+      "cost_difference_vs_baseline": 25.70,
+      "first_stockout_date": null
     },
     {
       "scenario_name": "Severe Delay & Surge",
@@ -417,7 +504,8 @@ A discrete-event daily replenishment simulator that stress-tests inventory avail
       "fulfillment_rate_pct": 86.8,
       "total_units_ordered": 264,
       "total_inventory_cost": 318.40,
-      "cost_difference_vs_baseline": 5.90
+      "cost_difference_vs_baseline": 5.90,
+      "first_stockout_date": "2026-09-24"
     }
   ],
   "insights": [

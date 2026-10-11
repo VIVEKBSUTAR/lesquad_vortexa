@@ -49,3 +49,22 @@ def test_root_index_endpoint(client: TestClient):
     assert data["service"] == "StockSense" or "StockSense" in data["service"]
     assert "docs_url" in data
     assert "api_v1_products" in data
+
+
+def test_recommendation_calculate_route_registered(client: TestClient):
+    """Verify that POST /api/v1/products/{product_id}/recommendations/calculate is registered in OpenAPI."""
+    response = client.get("/openapi.json")
+    assert response.status_code == status.HTTP_200_OK
+    schema = response.json()
+    paths = schema.get("paths", {})
+
+    expected_path = "/api/v1/products/{product_id}/recommendations/calculate"
+    assert expected_path in paths, (
+        f"Route {expected_path} not found in registered OpenAPI paths: {list(paths.keys())}"
+    )
+    assert "post" in paths[expected_path], f"HTTP method POST not found on {expected_path}"
+
+    obsolete_path = "/api/v1/products/{product_id}/recommendation"
+    assert obsolete_path not in paths, (
+        f"Obsolete path {obsolete_path} should not be registered as a duplicate"
+    )
