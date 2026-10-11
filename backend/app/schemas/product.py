@@ -31,6 +31,29 @@ class ProductCreate(ProductBase):
     pass
 
 
+class ProductUpdate(BaseModel):
+    sku: Optional[str] = Field(None, max_length=64)
+    name: Optional[str] = Field(None, max_length=255)
+    category: Optional[str] = Field(None, max_length=100)
+    unit_of_measure: Optional[str] = Field(None, max_length=32)
+    current_stock: Optional[int] = Field(None, ge=0)
+    committed_qty: Optional[int] = Field(None, ge=0)
+    safety_stock: Optional[int] = Field(None, ge=0)
+    reorder_point: Optional[int] = Field(None, ge=0)
+    lead_time_days: Optional[int] = Field(None, ge=1)
+    lead_time_stddev_days: Optional[float] = Field(None, ge=0)
+    unit_cost: Optional[Decimal] = Field(None, ge=0)
+    ordering_cost: Optional[Decimal] = Field(None, ge=0)
+    holding_cost_rate: Optional[Decimal] = Field(None, ge=0)
+    holding_cost_per_unit_year: Optional[Decimal] = Field(None, ge=0)
+    stockout_cost: Optional[Decimal] = Field(None, ge=0)
+    target_service_level: Optional[float] = Field(None, gt=0, lt=1)
+    minimum_order_qty: Optional[int] = Field(None, ge=1)
+    pack_size: Optional[int] = Field(None, ge=1)
+    is_active: Optional[bool] = None
+
+
+
 class ProductRead(ProductBase):
     model_config = ConfigDict(from_attributes=True)
 
