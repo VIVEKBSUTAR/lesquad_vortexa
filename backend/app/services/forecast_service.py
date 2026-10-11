@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -164,39 +164,49 @@ class ForecastService:
     @staticmethod
     def list_forecast_runs(
         db: Session,
-        product_id: int,
+        product_id: Optional[int] = None,
         page: int = 1,
         limit: int = 20,
     ) -> ForecastRunListResponse:
-        """Lists paginated forecast runs for a product."""
-        product = db.execute(select(Product).where(Product.id == product_id)).scalar_one_or_none()
-        if not product:
-            raise AppException(
-                message=f"Product with ID {product_id} not found.",
-                code="PRODUCT_NOT_FOUND",
-                status_code=404,
-            )
+        """Lists paginated forecast runs across all products or for a specific product."""
+        query = select(ForecastRun)
+        count_query = select(func.count(ForecastRun.id))
 
-        total = (
-            db.scalar(
-                select(func.count(ForecastRun.id)).where(ForecastRun.product_id == product_id)
-            )
-            or 0
-        )
+        if product_id is not None:
+            product = db.execute(
+                select(Product).where(Product.id == product_id)
+            ).scalar_one_or_none()
+            if not product:
+                raise AppException(
+                    message=f"Product with ID {product_id} not found.",
+                    code="PRODUCT_NOT_FOUND",
+                    status_code=404,
+                )
+            query = query.where(ForecastRun.product_id == product_id)
+            count_query = count_query.where(ForecastRun.product_id == product_id)
+
+        total = db.scalar(count_query) or 0
 
         runs = (
             db.execute(
-                select(ForecastRun)
-                .where(ForecastRun.product_id == product_id)
-                .order_by(ForecastRun.id.desc())
-                .offset((page - 1) * limit)
-                .limit(limit)
+                query.order_by(ForecastRun.id.desc()).offset((page - 1) * limit).limit(limit)
             )
             .scalars()
             .all()
         )
 
-        items = [ForecastService._map_from_db(r, product) for r in runs]
+        prod_ids = list({r.product_id for r in runs})
+        products_map = {}
+        if prod_ids:
+            prods = db.execute(select(Product).where(Product.id.in_(prod_ids))).scalars().all()
+            products_map = {p.id: p for p in prods}
+
+        items = []
+        for r in runs:
+            p = products_map.get(r.product_id)
+            if p:
+                items.append(ForecastService._map_from_db(r, p))
+
         return ForecastRunListResponse(
             total=total,
             page=page,

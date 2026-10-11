@@ -1053,3 +1053,36 @@ def test_compare_incompatible_horizon_or_demand_basis_rejected(client, db_sessio
     )
     assert res2.status_code == 422
     assert res2.json()["error"]["code"] == "INCOMPATIBLE_DEMAND_BASIS"
+
+
+def test_list_all_scenarios_global_and_filtered(client, db_session):
+    """Verify GET /scenarios returns paginated runs globally or filtered by product_id."""
+    prod1 = create_test_product(db_session, sku="SKU-SCEN-GLOB-1")
+    prod2 = create_test_product(db_session, sku="SKU-SCEN-GLOB-2")
+    create_uniform_demand_records(db_session, product_id=prod1.id, num_days=14)
+    create_uniform_demand_records(db_session, product_id=prod2.id, num_days=14)
+
+    client.post(
+        f"/api/v1/products/{prod1.id}/scenarios",
+        json={"scenario_name": "Glob Scen 1", "demand_surge_pct": 10.0},
+    )
+    client.post(
+        f"/api/v1/products/{prod2.id}/scenarios",
+        json={"scenario_name": "Glob Scen 2", "demand_surge_pct": 20.0},
+    )
+
+    # Global list
+    resp_all = client.get("/api/v1/scenarios")
+    assert resp_all.status_code == 200
+    data_all = resp_all.json()
+    assert data_all["total"] >= 2
+    skus = {item["sku"] for item in data_all["items"]}
+    assert "SKU-SCEN-GLOB-1" in skus
+    assert "SKU-SCEN-GLOB-2" in skus
+
+    # Filtered by product_id
+    resp_p1 = client.get(f"/api/v1/scenarios?product_id={prod1.id}")
+    assert resp_p1.status_code == 200
+    data_p1 = resp_p1.json()
+    assert data_p1["total"] >= 1
+    assert all(item["product_id"] == prod1.id for item in data_p1["items"])

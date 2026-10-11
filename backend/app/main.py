@@ -76,10 +76,11 @@ def create_app(custom_settings: Settings | None = None) -> FastAPI:
 
     # CORS configuration
     if active_settings.CORS_ORIGINS:
+        has_wildcard = "*" in active_settings.CORS_ORIGINS
         app.add_middleware(
             CORSMiddleware,
             allow_origins=active_settings.CORS_ORIGINS,
-            allow_credentials=True,
+            allow_credentials=not has_wildcard,
             allow_methods=["*"],
             allow_headers=["*"],
         )
@@ -97,7 +98,7 @@ def create_app(custom_settings: Settings | None = None) -> FastAPI:
             "service": active_settings.PROJECT_NAME,
             "version": active_settings.VERSION,
             "environment": active_settings.ENVIRONMENT,
-            "docs_url": "/docs",
+            "docs_url": docs_url,
             "health_live": "/health/live",
             "health_ready": "/health/ready",
             "api_v1_status": f"{active_settings.API_V1_PREFIX}/status",

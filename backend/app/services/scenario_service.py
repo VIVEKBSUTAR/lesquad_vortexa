@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -151,43 +151,64 @@ class ScenarioService:
         return ScenarioService._map_from_db(run, product)
 
     @staticmethod
-    def list_scenarios_for_product(
+    def list_scenarios(
         db: Session,
-        product_id: int,
+        product_id: Optional[int] = None,
         page: int = 1,
         limit: int = 20,
     ) -> ScenarioListResponse:
-        """Lists paginated historical scenarios for a product."""
-        product = db.execute(select(Product).where(Product.id == product_id)).scalar_one_or_none()
-        if not product:
-            raise ProductNotFoundError(product_id)
+        """Lists paginated historical scenarios, optionally filtered by product_id."""
+        stmt = select(ScenarioRun)
+        count_stmt = select(func.count(ScenarioRun.id))
 
-        total = (
-            db.scalar(
-                select(func.count(ScenarioRun.id)).where(ScenarioRun.product_id == product_id)
-            )
-            or 0
-        )
+        if product_id is not None:
+            product = db.execute(
+                select(Product).where(Product.id == product_id)
+            ).scalar_one_or_none()
+            if not product:
+                raise ProductNotFoundError(product_id)
+            stmt = stmt.where(ScenarioRun.product_id == product_id)
+            count_stmt = count_stmt.where(ScenarioRun.product_id == product_id)
+
+        total = db.scalar(count_stmt) or 0
 
         runs = (
-            db.execute(
-                select(ScenarioRun)
-                .where(ScenarioRun.product_id == product_id)
-                .order_by(ScenarioRun.id.desc())
-                .offset((page - 1) * limit)
-                .limit(limit)
-            )
+            db.execute(stmt.order_by(ScenarioRun.id.desc()).offset((page - 1) * limit).limit(limit))
             .scalars()
             .all()
         )
 
-        items = [ScenarioService._map_from_db(r, product) for r in runs]
+        if not runs:
+            return ScenarioListResponse(total=total, page=page, limit=limit, items=[])
+
+        # Batch load products to prevent N+1 queries
+        product_ids = {r.product_id for r in runs}
+        products = {
+            p.id: p
+            for p in db.execute(select(Product).where(Product.id.in_(product_ids))).scalars().all()
+        }
+
+        items = [
+            ScenarioService._map_from_db(r, products[r.product_id])
+            for r in runs
+            if r.product_id in products
+        ]
         return ScenarioListResponse(
             total=total,
             page=page,
             limit=limit,
             items=items,
         )
+
+    @staticmethod
+    def list_scenarios_for_product(
+        db: Session,
+        product_id: int,
+        page: int = 1,
+        limit: int = 20,
+    ) -> ScenarioListResponse:
+        """Lists paginated historical scenarios for a product (backward-compatible delegate)."""
+        return ScenarioService.list_scenarios(db=db, product_id=product_id, page=page, limit=limit)
 
     @staticmethod
     def compare_scenarios(

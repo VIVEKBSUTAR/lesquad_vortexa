@@ -1,6 +1,8 @@
-# StockSense — Backend Foundation (Phase 1)
+# StockSense — Backend Engine
 
-StockSense is an **Adaptive, Risk-Aware Inventory Replenishment Engine**. This service provides the core FastAPI application, database schemas, configuration management, and migration infrastructure.
+StockSense is an **Adaptive, Risk-Aware Inventory Replenishment Engine**. This service provides the core FastAPI application, database schemas, configuration management, replenishment calculations, anomaly detection, forecast benchmarking, and What-If simulation.
+
+> **Frontend Integration Guide**: For the complete REST API contract, request/response schemas, and workflow details, see [API_INTEGRATION.md](API_INTEGRATION.md).
 
 ---
 

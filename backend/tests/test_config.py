@@ -98,3 +98,28 @@ def test_database_url_and_secret_masking():
     # 2. SecretStr hides raw value on str()
     assert "my_secret_token_value" not in str(cfg.SECRET_KEY)
     assert "**********" in str(cfg.SECRET_KEY)
+
+
+def test_cors_middleware_wildcard_vs_explicit_credentials():
+    """Verify that wildcard CORS origins do not enable credentials (security compliance)."""
+    from starlette.middleware.cors import CORSMiddleware
+
+    from app.main import create_app
+
+    # Wildcard origin -> allow_credentials must be False
+    cfg_wildcard = Settings(CORS_ORIGINS=["*"])
+    app_wildcard = create_app(cfg_wildcard)
+    cors_mw_wildcard = next(
+        (m for m in app_wildcard.user_middleware if m.cls == CORSMiddleware), None
+    )
+    assert cors_mw_wildcard is not None
+    assert cors_mw_wildcard.kwargs["allow_credentials"] is False
+
+    # Explicit origin -> allow_credentials is True
+    cfg_explicit = Settings(CORS_ORIGINS=["https://frontend.example.com"])
+    app_explicit = create_app(cfg_explicit)
+    cors_mw_explicit = next(
+        (m for m in app_explicit.user_middleware if m.cls == CORSMiddleware), None
+    )
+    assert cors_mw_explicit is not None
+    assert cors_mw_explicit.kwargs["allow_credentials"] is True

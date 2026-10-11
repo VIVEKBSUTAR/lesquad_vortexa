@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -40,6 +41,26 @@ def create_scenario_run(
         db=db,
         product_id=product_id,
         request=request,
+    )
+
+
+@router.get(
+    "/scenarios",
+    response_model=ScenarioListResponse,
+    summary="List Scenario Simulation Runs",
+    description="Returns a paginated list of historical scenario simulation runs across all products, or filtered by product_id.",
+)
+def list_scenarios(
+    product_id: Optional[int] = Query(default=None, description="Optional product ID filter"),
+    page: int = Query(default=1, ge=1, description="Page number"),
+    limit: int = Query(default=20, ge=1, le=100, description="Page size limit"),
+    db: Session = Depends(get_db),
+) -> ScenarioListResponse:
+    return ScenarioService.list_scenarios(
+        db=db,
+        product_id=product_id,
+        page=page,
+        limit=limit,
     )
 
 

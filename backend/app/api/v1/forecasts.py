@@ -53,6 +53,26 @@ def get_forecast_run(
 
 
 @router.get(
+    "/forecast-runs",
+    response_model=ForecastRunListResponse,
+    summary="List Forecast Runs",
+    description="Returns paginated historical forecast benchmark runs across all products or filtered by product_id.",
+)
+def list_forecast_runs(
+    product_id: Optional[int] = Query(default=None, description="Optional product ID filter"),
+    page: int = Query(default=1, ge=1, description="Page number"),
+    limit: int = Query(default=20, ge=1, le=100, description="Page size limit"),
+    db: Session = Depends(get_db),
+) -> ForecastRunListResponse:
+    return ForecastService.list_forecast_runs(
+        db=db,
+        product_id=product_id,
+        page=page,
+        limit=limit,
+    )
+
+
+@router.get(
     "/products/{product_id}/forecast-runs",
     response_model=ForecastRunListResponse,
     summary="List Forecast Runs for Product",

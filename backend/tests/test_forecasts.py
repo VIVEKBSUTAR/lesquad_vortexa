@@ -728,3 +728,40 @@ def test_forecast_benchmark_transaction_rollback_on_db_error(db_session: Session
                 product_id=prod.id,
                 request=req,
             )
+
+
+def test_list_all_forecast_runs_global_and_filtered(client: TestClient, db_session: Session):
+    """Verify GET /forecast-runs returns paginated runs globally or filtered by product_id."""
+    prod1 = _create_sample_product(db_session, sku="SKU-GLOBAL-FC-1")
+    prod2 = _create_sample_product(db_session, sku="SKU-GLOBAL-FC-2")
+    _create_demand_series(
+        db_session,
+        prod1.id,
+        start_date=date(2026, 1, 1),
+        quantities=[10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32],
+    )
+    _create_demand_series(
+        db_session,
+        prod2.id,
+        start_date=date(2026, 1, 1),
+        quantities=[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    )
+
+    client.post(f"/api/v1/products/{prod1.id}/forecast-benchmark", json={"test_size": 0.25})
+    client.post(f"/api/v1/products/{prod2.id}/forecast-benchmark", json={"test_size": 0.25})
+
+    # Global list
+    resp_all = client.get("/api/v1/forecast-runs")
+    assert resp_all.status_code == 200
+    data_all = resp_all.json()
+    assert data_all["total"] >= 2
+    skus = {item["sku"] for item in data_all["items"]}
+    assert "SKU-GLOBAL-FC-1" in skus
+    assert "SKU-GLOBAL-FC-2" in skus
+
+    # Filtered by product_id
+    resp_p1 = client.get(f"/api/v1/forecast-runs?product_id={prod1.id}")
+    assert resp_p1.status_code == 200
+    data_p1 = resp_p1.json()
+    assert data_p1["total"] >= 1
+    assert all(item["product_id"] == prod1.id for item in data_p1["items"])
