@@ -3,7 +3,7 @@
 import React from 'react';
 import { ArrowRight, Sparkles, Sliders, Database, Layers, BarChart3, Activity, Compass } from 'lucide-react';
 
-export type ActiveNavTab = 'story' | 'overview' | 'inventory' | 'demand' | 'scenario';
+export type ActiveNavTab = 'product' | 'overview' | 'inventory' | 'demand' | 'scenario';
 
 interface HeaderProps {
   activeTab: ActiveNavTab;
@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand Wordmark */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => onSelectTab('story')}
+          onClick={() => onSelectTab('product')}
           className="text-left font-serif text-2xl tracking-tight text-ink font-light select-none hover:text-accent transition-colors cursor-pointer"
         >
           StockSense
@@ -38,15 +38,15 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Primary Navigation Tabs */}
       <nav className="flex items-center gap-1 bg-surface/90 border border-border p-1 rounded-xl shadow-xs text-xs font-mono font-medium">
         <button
-          onClick={() => onSelectTab('story')}
+          onClick={() => onSelectTab('product')}
           className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'story'
+            activeTab === 'product'
               ? 'bg-ink text-surface shadow-xs font-semibold'
               : 'text-muted hover:text-ink'
           }`}
         >
-          <Compass className="w-3.5 h-3.5" />
-          <span>3D Story</span>
+          <Sparkles className="w-3.5 h-3.5 text-accent" />
+          <span>Product</span>
         </button>
 
         <button

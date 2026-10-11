@@ -150,27 +150,28 @@ stocksense/
 │   ├── app/
 │   │   ├── globals.css           # Tailwind v4 theme tokens & custom range sliders
 │   │   ├── layout.tsx            # Google Fonts (Fraunces, Inter, JetBrains Mono)
-│   │   └── page.tsx              # Main orchestrator (Canvas, Intro, Story, Dashboard)
+│   │   └── page.tsx              # Main orchestrator (Product Showcase & Contract Views)
 │   ├── components/
-│   │   ├── canvas/
-│   │   │   └── StockSense3D.tsx  # Persistent WebGL canvas, 8 procedural 3D products, warehouse
+│   │   ├── product/
+│   │   │   └── ProductShowcase.tsx    # GSAP ScrollTrigger product experience (gsap.com inspired)
+│   │   ├── views/
+│   │   │   ├── OverviewView.tsx       # Fleet health, KPI ribbons, quick module links
+│   │   │   ├── InventoryView.tsx      # SKU management, live editing, stock recalculation
+│   │   │   ├── DemandInsightsView.tsx # CSV batch import, anomaly triage, holdout prover
+│   │   │   └── ScenarioLabView.tsx    # Crisis simulator with shock sliders & reactive charts
 │   │   ├── dashboard/
-│   │   │   ├── AnomalyAuditLog.tsx    # Filterable anomaly clamp table
+│   │   │   ├── AnomalyAuditLog.tsx    # Filterable anomaly review table
 │   │   │   ├── CrisisSimulator.tsx    # Interactive stress sliders & reactive Recharts
-│   │   │   ├── DashboardView.tsx      # Main command center layout & tab orchestrator
 │   │   │   ├── HoldoutProver.tsx      # 90-day MAE split comparison chart
 │   │   │   ├── NetworkTicker.tsx      # Mechanical rolling digit buffer counter
-│   │   │   ├── ProductDetailModal.tsx # Full formula audit & lead time breakdown
+│   │   │   ├── ProductDetailModal.tsx # Zero-formula decision-ready SKU audit drawer
 │   │   │   └── ProductGrid.tsx        # 8 dense SKU cards with status badges
-│   │   ├── intro/
-│   │   │   └── IntroOverlay.tsx  # Sequence 1 orbital intro (0-7s) & Skip button
-│   │   ├── navigation/
-│   │   │   └── Header.tsx        # Brand wordmark, Story/Dashboard toggle, status badge
-│   │   └── story/
-│   │       └── StoryView.tsx     # 5-chapter scroll-driven storytelling view
+│   │   └── navigation/
+│   │       └── Header.tsx        # Brand wordmark, navigation tabs, FastAPI live status
 │   └── lib/
+│       ├── api.ts                # Full /api/v1 contract client with deterministic fallback
 │       ├── data.ts               # Synthetic 8-product dataset, 365d demand, anomalies, holdouts
-│       ├── math.ts               # Pure deterministic OR formulas (SS, ROP, EOQ, InvPos, Z-Score)
+│       ├── math.ts               # Pure deterministic OR logic (SS, ROP, EOQ, InvPos, Z-Score)
 │       └── types.ts              # Strict TypeScript data contracts
 ├── package.json
 └── README.md
