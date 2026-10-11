@@ -102,6 +102,14 @@ export default function Home() {
       metrics: computeProductMetrics(p, serviceLevel),
     }));
     setProducts(updated);
+    if (updated.length > 0) {
+      setSelectedProduct((prev) => {
+        if (!prev || !updated.some((item) => item.sku === prev.sku)) {
+          return updated[0];
+        }
+        return prev;
+      });
+    }
   };
 
   if (!products.length) {

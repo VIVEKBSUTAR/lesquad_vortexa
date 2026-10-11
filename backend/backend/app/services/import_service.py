@@ -9,9 +9,13 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.anomaly import AnomalyReview
 from app.models.data_import import DataImport, ImportRowError
 from app.models.demand import DemandRecord
+from app.models.forecast import ForecastRun
 from app.models.product import Product
+from app.models.recommendation import Recommendation
+from app.models.scenario import ScenarioRun
 from app.schemas.import_job import (
     ImportConfirmResponse,
     ImportDetailResponse,
@@ -1406,7 +1410,56 @@ class ImportService:
         )
 
     @classmethod
-    def confirm_import(cls, import_id: str, db: Session) -> ImportConfirmResponse:
+    def reset_catalog_data(
+        cls,
+        db: Session,
+        keep_import_ids: Optional[List[str]] = None,
+        keep_staged_imports: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Purges all existing products, demand records, and analytics runs
+        to ensure a completely clean slate for newly imported datasets.
+        """
+        db.query(ScenarioRun).delete(synchronize_session=False)
+        db.query(Recommendation).delete(synchronize_session=False)
+        db.query(ForecastRun).delete(synchronize_session=False)
+        db.query(AnomalyReview).delete(synchronize_session=False)
+        db.query(DemandRecord).delete(synchronize_session=False)
+        deleted_products = db.query(Product).delete(synchronize_session=False)
+
+        preserve_ids = set(keep_import_ids or [])
+        if keep_staged_imports:
+            staged_ids = [
+                d.id
+                for d in db.query(DataImport.id)
+                .filter(DataImport.status.in_(["previewed", "staged"]))
+                .all()
+            ]
+            preserve_ids.update(staged_ids)
+
+        if preserve_ids:
+            db.query(ImportRowError).filter(
+                ~ImportRowError.import_id.in_(list(preserve_ids))
+            ).delete(synchronize_session=False)
+            db.query(DataImport).filter(
+                ~DataImport.id.in_(list(preserve_ids))
+            ).delete(synchronize_session=False)
+        else:
+            db.query(ImportRowError).delete(synchronize_session=False)
+            db.query(DataImport).delete(synchronize_session=False)
+
+        db.commit()
+        db.expire_all()
+        return {
+            "status": "success",
+            "message": f"Successfully purged existing catalog ({deleted_products} products and all associated demand & analytics).",
+            "deleted_products_count": deleted_products,
+        }
+
+    @classmethod
+    def confirm_import(
+        cls, import_id: str, db: Session, clear_existing: bool = False
+    ) -> ImportConfirmResponse:
         """
         Revalidate and transactionally commit confirmed import records into the database.
         Safe against retries: if already confirmed, returns idempotent summary.
@@ -1421,6 +1474,11 @@ class ImportService:
                     "message": f"Import session '{import_id}' was not found.",
                 },
             )
+
+        # If clear_existing is requested on products import, purge old catalog first while preserving staged sessions
+        if clear_existing and import_record.file_type == "products":
+            cls.reset_catalog_data(db=db, keep_import_ids=[import_id], keep_staged_imports=True)
+            import_record = db.query(DataImport).filter(DataImport.id == import_id).first()
 
         # Idempotent retry: if already confirmed, safely return existing confirmation
         if import_record.status == "confirmed":

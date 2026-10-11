@@ -38,6 +38,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
   const [productsFile, setProductsFile] = useState<File | null>(null);
   const [demandFile, setDemandFile] = useState<File | null>(null);
   const [supplierFile, setSupplierFile] = useState<File | null>(null);
+  const [replaceExistingData, setReplaceExistingData] = useState<boolean>(true);
 
   // Step 2 & 3: Validation & Preview State from Backend API
   const [isValidating, setIsValidating] = useState(false);
@@ -68,6 +69,7 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
       setProductsFile(null);
       setDemandFile(null);
       setSupplierFile(null);
+      setReplaceExistingData(true);
       setProductsPreview(null);
       setDemandPreview(null);
       setSupplierPreview(null);
@@ -215,7 +217,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
 
     try {
       // 1. Confirm products first to establish foreign keys in database
-      const pConfirm = await apiClient.confirmImport(productsPreview.import_id);
+      // If replaceExistingData is true, previous catalog & demand history is purged first
+      const pConfirm = await apiClient.confirmImport(productsPreview.import_id, replaceExistingData);
 
       // 2. Confirm daily demand records
       const dConfirm = await apiClient.confirmImport(demandPreview.import_id);
@@ -481,6 +484,26 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
                 </div>
               </div>
 
+              {/* Dataset Scope & Clean Slate Option */}
+              <div className="p-4 rounded-2xl bg-surface border border-border flex items-start gap-3 shadow-xs">
+                <input
+                  type="checkbox"
+                  id="replaceExistingData"
+                  checked={replaceExistingData}
+                  onChange={(e) => setReplaceExistingData(e.target.checked)}
+                  className="mt-0.5 rounded border-border accent-accent w-4 h-4 cursor-pointer"
+                />
+                <div className="flex-1">
+                  <label htmlFor="replaceExistingData" className="font-mono text-xs font-semibold text-ink cursor-pointer flex items-center gap-2">
+                    <span>Replace Existing Dataset (Clean Slate)</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-accent/10 text-accent font-semibold">Recommended</span>
+                  </label>
+                  <p className="text-[11px] font-sans text-muted mt-1 leading-relaxed">
+                    When enabled, previous catalog products and historical demand observations are purged on confirmation. Analytics, KPIs, and stockout risk radar will run exclusively on the newly uploaded data without mixing older items.
+                  </p>
+                </div>
+              </div>
+
               <div className="p-4 rounded-xl bg-stone/40 border border-border font-mono text-xs text-muted">
                 <span className="text-ink font-semibold">Validation Guardrail:</span> StockSense requires explicit validation before commit. Missing dates are never assumed to be zero demand, and duplicate records are rejected, not summed.
               </div>
@@ -619,6 +642,36 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
                   <span>{confirmError}</span>
                 </div>
               )}
+
+              {/* Dataset Scope Status in Step 3 */}
+              <div className={`p-4 rounded-2xl border font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                replaceExistingData
+                  ? 'bg-moss/10 border-moss/30 text-ink'
+                  : 'bg-stone/50 border-border text-muted'
+              }`}>
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <Database className={`w-4 h-4 mt-0.5 sm:mt-0 flex-shrink-0 ${replaceExistingData ? 'text-moss' : 'text-muted'}`} />
+                  <div>
+                    <span className="font-semibold text-ink">
+                      {replaceExistingData
+                        ? 'Clean Slate Mode: Overwrite previous dataset'
+                        : 'Append Mode: Merge with existing dataset'}
+                    </span>
+                    <span className="block text-[11px] text-muted font-sans mt-0.5">
+                      {replaceExistingData
+                        ? 'Previous products & observations will be purged so analysis runs strictly on this new dataset.'
+                        : 'New records will be appended to the current database catalog.'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplaceExistingData(!replaceExistingData)}
+                  className="self-start sm:self-auto px-3 py-1.5 rounded-xl border border-border bg-surface text-ink hover:border-accent text-xs font-mono transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  Switch to {replaceExistingData ? 'Append Mode' : 'Clean Slate'}
+                </button>
+              </div>
 
               {/* Tab Selector */}
               <div className="flex items-center gap-2 border-b border-border pb-3">
@@ -795,6 +848,15 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({
                   </p>
                 </div>
               </div>
+
+              {Boolean(confirmedResults?.products?.counts?.cleared_existing) && (
+                <div className="p-4 rounded-xl bg-accent/10 border border-accent/20 text-xs font-mono text-ink flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-accent flex-shrink-0" />
+                  <span>
+                    Clean Slate active: {confirmedResults?.products?.counts?.cleared_existing} previous catalog items purged. Operations research calculations will run strictly on this new dataset without mixing older records.
+                  </span>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-4 font-mono text-xs">
                 <div className="p-4 rounded-xl bg-stone/60 border border-border">

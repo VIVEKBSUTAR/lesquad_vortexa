@@ -749,3 +749,57 @@ def test_postgres_import_pipeline_live():
                         DataImport.id.in_(import_ids_to_clean)
                     ).delete()
                 cleanup_session.commit()
+
+
+def test_reset_catalog_and_clear_existing_import(client: TestClient, db_session: Session):
+    """Test 18: Resetting catalog and confirming import with clear_existing=True cleans old items."""
+    # 1. Create an initial product
+    old_prod = Product(
+        sku="OLD-SKU-001",
+        name="Old Legacy Product",
+        unit_of_measure="unit",
+        current_stock=50,
+        committed_qty=5,
+    )
+    db_session.add(old_prod)
+    db_session.commit()
+
+    # 2. Stage a new product import
+    new_csv = (
+        "sku,product_name,unit_of_measure,on_hand_qty,committed_qty,unit_cost\n"
+        "NEW-SKU-999,Fresh Clean Product,units,100,10,250.0\n"
+    )
+    preview_res = client.post(
+        "/api/v1/imports/products/preview",
+        files={"file": ("products.csv", new_csv.encode("utf-8"), "text/csv")},
+    )
+    assert preview_res.status_code == 200
+    import_id = preview_res.json()["import_id"]
+
+    # 3. Confirm with clear_existing=True
+    conf_res = client.post(f"/api/v1/imports/{import_id}/confirm?clear_existing=true")
+    assert conf_res.status_code == 200
+    conf_data = conf_res.json()
+    assert conf_data["status"] == "confirmed"
+    assert conf_data["persisted_rows"] == 1
+
+    # 4. Check products list in DB: OLD-SKU-001 should be gone, only NEW-SKU-999 should exist
+    prods = client.get("/api/v1/products").json()
+    skus = [p["sku"] for p in prods]
+    assert "NEW-SKU-999" in skus
+    assert "OLD-SKU-001" not in skus
+
+    # 5. Test POST /api/v1/imports/reset directly
+    reset_res = client.post("/api/v1/imports/reset")
+    assert reset_res.status_code == 200
+    assert reset_res.json()["status"] == "success"
+
+    # 6. Verify products table is now empty
+    empty_prods = client.get("/api/v1/products").json()
+    assert len(empty_prods) == 0
+
+    # 7. Test DELETE /api/v1/products
+    del_res = client.delete("/api/v1/products")
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "success"
+

@@ -114,13 +114,30 @@ async def preview_generic_csv(
     "/{import_id}/confirm",
     response_model=ImportConfirmResponse,
     summary="Confirm CSV Import",
-    description="Revalidate the import against current database state and transactionally persist records.",
+    description="Revalidate the import against current database state and transactionally persist records. Optionally purges previous catalog data.",
 )
 def confirm_import(
     import_id: str,
+    clear_existing: bool = Query(
+        False,
+        description="Whether to purge previous catalog and demand data before persisting this import",
+    ),
     db: Session = Depends(get_db),
 ) -> ImportConfirmResponse:
-    return ImportService.confirm_import(import_id=import_id, db=db)
+    return ImportService.confirm_import(
+        import_id=import_id, db=db, clear_existing=clear_existing
+    )
+
+
+@router.post(
+    "/reset",
+    summary="Reset / Clear Catalog & Analytics Data",
+    description="Purges all existing products, demand records, recommendations, and analytics so a new dataset can be analyzed in complete isolation.",
+)
+def reset_database_data(
+    db: Session = Depends(get_db),
+) -> dict:
+    return ImportService.reset_catalog_data(db=db)
 
 
 @router.get(

@@ -107,6 +107,7 @@ export interface ImportConfirmResponse {
     rows_inserted: number;
     rows_rejected: number;
     rows_skipped: number;
+    cleared_existing?: number;
   };
   products_created: number;
   demand_records_created: number;
@@ -649,9 +650,10 @@ class StockSenseApiClient {
     };
   }
 
-  async confirmImport(importId: string): Promise<ImportConfirmResponse> {
+  async confirmImport(importId: string, clearExisting: boolean = false): Promise<ImportConfirmResponse> {
     try {
-      const res = await fetch(`${this.baseUrl}/imports/${importId}/confirm`, {
+      const url = `${this.baseUrl}/imports/${importId}/confirm${clearExisting ? '?clear_existing=true' : ''}`;
+      const res = await fetch(url, {
         method: 'POST',
       });
       if (res.ok) {
@@ -689,6 +691,20 @@ class StockSenseApiClient {
       warnings: ['Stockout-flagged rows retained and marked as potentially censored.'],
       completed_at: new Date().toISOString(),
     };
+  }
+
+  async resetCatalogData(): Promise<{ status: string; message: string }> {
+    try {
+      const res = await fetch(`${this.baseUrl}/imports/reset`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        this.skuToIdMap.clear();
+        this.idToBackendIdMap.clear();
+        return await res.json();
+      }
+    } catch {}
+    return { status: 'success', message: 'Local catalog state reset.' };
   }
 
   // 5. ANOMALY DETECTION & HUMAN REVIEW

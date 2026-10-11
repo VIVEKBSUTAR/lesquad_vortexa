@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -53,6 +53,17 @@ def create_product(product_in: ProductCreate, db: Session = Depends(get_db)) -> 
 )
 def seed_demo(db: Session = Depends(get_db)) -> Dict[str, int]:
     return seed_demo_data(db)
+
+
+@router.delete(
+    "",
+    summary="Clear All Products",
+    description="Deletes all products and cascades deletion to all demand records and analytics.",
+)
+def clear_all_products(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    from app.services.import_service import ImportService
+    result = ImportService.reset_catalog_data(db=db)
+    return {"status": "success", "deleted_products": result["deleted_products_count"]}
 
 
 @router.get(
