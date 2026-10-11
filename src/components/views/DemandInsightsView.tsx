@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ProductWithComputed } from '@/lib/types';
+import { DemandRecord, ProductWithComputed } from '@/lib/types';
 import {
   apiClient,
   DemandItem,
   ImportPreviewResponse,
   ImportConfirmResponse,
-  AnomalyCandidate,
 } from '@/lib/api';
+import { getDemandRecords } from '@/lib/data';
 import { AnomalyAuditLog } from '@/components/dashboard/AnomalyAuditLog';
 import { HoldoutProver } from '@/components/dashboard/HoldoutProver';
 import {
@@ -25,6 +25,13 @@ import {
   ArrowRight,
   ShieldCheck,
   RotateCcw,
+  Search,
+  Calendar,
+  AlertOctagon,
+  Sparkles,
+  Database,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -47,6 +54,16 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
   const [demandHistory, setDemandHistory] = useState<DemandItem[]>([]);
   const [isLoadingDemand, setIsLoadingDemand] = useState(false);
 
+  // Table 2: demand_records state
+  const [allDemandRecords, setAllDemandRecords] = useState<DemandRecord[]>(() =>
+    getDemandRecords(products)
+  );
+  const [demandSkuFilter, setDemandSkuFilter] = useState<string>(products[0].id);
+  const [demandFlagFilter, setDemandFlagFilter] = useState<'all' | 'stockout' | 'promo' | 'clean'>('all');
+  const [demandSearchTerm, setDemandSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
+
   // CSV Import Wizard State (Section 4 of contract)
   const [importDatasetType, setImportDatasetType] = useState<'products' | 'daily_demand' | 'supplier_settings'>('daily_demand');
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -55,16 +72,7 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
   const [isUploading, setIsUploading] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  // Anomaly Review Modal State (Section 5.3 of contract)
-  const [reviewModalAnomaly, setReviewModalAnomaly] = useState<any | null>(null);
-  const [reviewForm, setReviewForm] = useState({
-    confirmed_type: 'data_error',
-    treatment: 'use_corrected_value',
-    proposed_corrected_value: 35,
-    reviewer_note: 'Verified with ERP master transaction log.',
-  });
-
-  // Load daily demand when product changes
+  // Load daily demand chart data when product changes
   useEffect(() => {
     setIsDemandLoaded(selectedProduct.id);
   }, [selectedProduct]);
@@ -100,32 +108,48 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
     setIsConfirming(false);
   };
 
-  const handleSaveAnomalyReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reviewModalAnomaly) return;
-    await apiClient.submitAnomalyReview(reviewModalAnomaly.anomaly.id || 'anom_001', reviewForm);
-    // Apply update to product anomalies locally
-    reviewModalAnomaly.anomaly.adj = reviewForm.proposed_corrected_value;
-    reviewModalAnomaly.anomaly.type = reviewForm.confirmed_type;
-    setReviewModalAnomaly(null);
-  };
+  // Filter demand records for Table 2
+  const filteredDemandRecords = allDemandRecords.filter((record) => {
+    const matchesSku = demandSkuFilter === 'all' || record.productId === demandSkuFilter;
+    const matchesFlag =
+      demandFlagFilter === 'all' ||
+      (demandFlagFilter === 'stockout' && record.stockoutFlag) ||
+      (demandFlagFilter === 'promo' && record.promotionFlag) ||
+      (demandFlagFilter === 'clean' && !record.stockoutFlag && !record.promotionFlag);
+    const matchesSearch =
+      record.date.includes(demandSearchTerm) ||
+      record.id.toLowerCase().includes(demandSearchTerm.toLowerCase()) ||
+      (record.notes && record.notes.toLowerCase().includes(demandSearchTerm.toLowerCase()));
+    return matchesSku && matchesFlag && matchesSearch;
+  });
+
+  const totalPages = Math.ceil(filteredDemandRecords.length / pageSize) || 1;
+  const paginatedDemandRecords = filteredDemandRecords.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Top Bar with Sub-Navigation */}
       <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-accent font-semibold uppercase tracking-wider">
+              StockSense Database Schema Integration
+            </span>
+          </div>
           <h3 className="font-serif text-2xl font-light text-ink">
             Demand Insights & Statistical Verification
           </h3>
           <p className="text-muted text-xs font-sans mt-0.5">
-            Audit daily demand observations, ingest staged CSV uploads, and verify AI anomaly classifications.
+            Audit daily observations in <span className="font-mono text-ink">demand_records</span> (Table 2), review AI classifications in <span className="font-mono text-ink">anomaly_reviews</span> (Table 3), and verify holdout accuracy in <span className="font-mono text-ink">forecast_runs</span> (Table 4).
           </p>
         </div>
 
         <div className="flex items-center gap-1 bg-stone p-1 rounded-xl border border-border text-xs font-mono">
           {[
-            { id: 'demand', label: 'Daily History' },
+            { id: 'demand', label: 'Daily History & Records' },
             { id: 'import', label: 'CSV Import Wizard' },
             { id: 'anomalies', label: 'Anomaly Audit Log' },
             { id: 'forecast', label: 'Holdout Prover' },
@@ -145,63 +169,244 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
         </div>
       </div>
 
-      {/* SUB-PANEL 1: DAILY DEMAND HISTORY */}
+      {/* SUB-PANEL 1: DAILY DEMAND HISTORY & demand_records Table (Table 2) */}
       {activeSubTab === 'demand' && (
-        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-muted font-semibold">
-                Historical Series (60-Day Lookback)
+        <div className="space-y-6">
+          {/* Chart Card */}
+          <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-wider text-muted font-semibold">
+                  Historical Observation Trajectory (60-Day Lookback)
+                </div>
+                <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
+                  {selectedProduct.sku} — {selectedProduct.name}
+                </h4>
               </div>
-              <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
-                {selectedProduct.sku} — {selectedProduct.name}
-              </h4>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-mono text-muted uppercase">Select SKU:</label>
-              <select
-                value={selectedProduct.id}
-                onChange={(e) => {
-                  const p = products.find((prod) => prod.id === e.target.value);
-                  if (p) setSelectedProduct(p);
-                }}
-                className="bg-stone text-ink border border-border rounded-xl px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.sku}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={demandHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#DAD6CE" opacity={0.6} />
-                <XAxis dataKey="date" stroke="#6D6A64" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }} interval={6} />
-                <YAxis stroke="#6D6A64" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#FAF9F7',
-                    borderColor: '#DAD6CE',
-                    borderRadius: '8px',
-                    fontFamily: 'JetBrains Mono',
-                    fontSize: '11px',
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-mono text-muted uppercase font-semibold">Select SKU:</label>
+                <select
+                  value={selectedProduct.id}
+                  onChange={(e) => {
+                    const p = products.find((prod) => prod.id === e.target.value);
+                    if (p) {
+                      setSelectedProduct(p);
+                      setDemandSkuFilter(p.id);
+                    }
                   }}
-                />
-                <ReferenceLine y={selectedProduct.baseDailyDemand} stroke="#0F5C5C" strokeDasharray="4 4" label={{ value: 'Nominal Baseline', fill: '#0F5C5C', fontSize: 10 }} />
-                <Bar dataKey="units_sold" name="Daily Units Sold" fill="#1C1B19" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+                  className="bg-stone text-ink border border-border rounded-xl px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.sku}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={demandHistory} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#DAD6CE" opacity={0.6} />
+                  <XAxis dataKey="date" stroke="#6D6A64" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }} interval={6} />
+                  <YAxis stroke="#6D6A64" tick={{ fontSize: 10, fontFamily: 'JetBrains Mono' }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#FAF9F7',
+                      borderColor: '#DAD6CE',
+                      borderRadius: '8px',
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: '11px',
+                    }}
+                  />
+                  <ReferenceLine y={selectedProduct.baseDailyDemand} stroke="#0F5C5C" strokeDasharray="4 4" label={{ value: 'Nominal Baseline', fill: '#0F5C5C', fontSize: 10 }} />
+                  <Bar dataKey="units_sold" name="Daily Units Sold" fill="#1C1B19" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="pt-4 border-t border-border flex flex-wrap justify-between items-center text-xs font-mono text-muted">
+              <span>Mean Demand (d̄): {selectedProduct.metrics.avgDemand.toFixed(1)} {selectedProduct.unitOfMeasure}/day</span>
+              <span>Demand StdDev (σd): {selectedProduct.metrics.demandStdDev.toFixed(1)}</span>
+              <span className="text-moss">Cleaned baseline shielded from spike contamination</span>
+            </div>
           </div>
 
-          <div className="pt-4 border-t border-border flex flex-wrap justify-between items-center text-xs font-mono text-muted">
-            <span>Mean Demand: {selectedProduct.metrics.avgDemand.toFixed(1)} units/day</span>
-            <span>Demand Variance: {selectedProduct.metrics.demandVariance.toFixed(1)}</span>
-            <span className="text-moss">Cleaned baseline variance shielded from spike distortion</span>
+          {/* TABLE 2: demand_records Relational Table */}
+          <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono gap-4">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                  Core Relational Table • demand_records (Table 2)
+                </span>
+                <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
+                  Daily Demand Observation Ledger
+                </h4>
+                <p className="text-muted text-xs font-sans mt-0.5">
+                  Stores daily demand observations with stockout flags (censored demand) and promotional markers.
+                </p>
+              </div>
+
+              {/* Filters for Table 2 */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Flag Filter Pills */}
+                <div className="flex items-center gap-1 bg-stone p-1 rounded-xl border border-border text-xs font-mono">
+                  {[
+                    { id: 'all', label: 'All Records' },
+                    { id: 'stockout', label: 'Stockouts Only' },
+                    { id: 'promo', label: 'Promos Only' },
+                    { id: 'clean', label: 'Clean Only' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => {
+                        setDemandFlagFilter(f.id as any);
+                        setCurrentPage(1);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        demandFlagFilter === f.id
+                          ? 'bg-ink text-surface font-semibold shadow-xs'
+                          : 'text-muted hover:text-ink'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* SKU filter */}
+                <select
+                  value={demandSkuFilter}
+                  onChange={(e) => {
+                    setDemandSkuFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-stone text-ink border border-border rounded-xl px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
+                >
+                  <option value="all">All SKUs</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.sku}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search date or notes..."
+                    value={demandSearchTerm}
+                    onChange={(e) => {
+                      setDemandSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-stone text-ink border border-border rounded-xl pl-8 pr-3 py-1.5 text-xs font-mono focus:outline-none focus:border-accent w-40 sm:w-48"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Table data */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left font-mono text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider bg-stone/30">
+                    <th className="py-3 px-3">Record ID</th>
+                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">SKU & Item</th>
+                    <th className="py-3 px-3">Units Sold</th>
+                    <th className="py-3 px-3">Stockout Flag (Censored)</th>
+                    <th className="py-3 px-3">Promotion Flag</th>
+                    <th className="py-3 px-3">Source Import ID</th>
+                    <th className="py-3 px-3">Contextual Observation Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {paginatedDemandRecords.map((r) => {
+                    const product = products.find((p) => p.id === r.productId);
+
+                    return (
+                      <tr key={r.id} className="hover:bg-stone/50 transition-colors">
+                        <td className="py-3 px-3 text-accent whitespace-nowrap font-medium">
+                          {r.id}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-ink">
+                          {r.date}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span className="font-semibold text-ink">{product?.sku}</span>
+                          <span className="text-[10px] text-muted block font-sans">{product?.name}</span>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap font-semibold text-ink">
+                          {r.unitsSold.toFixed(1)} {product?.unitOfMeasure}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {r.stockoutFlag ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-semibold bg-brick/10 text-brick border border-brick/30 inline-flex items-center gap-1">
+                              <AlertOctagon className="w-3 h-3" />
+                              <span>Censored Demand</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted text-[11px]">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          {r.promotionFlag ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-semibold bg-anomaly/10 text-anomaly border border-anomaly/30 inline-flex items-center gap-1">
+                              <Sparkles className="w-3 h-3" />
+                              <span>Promo Surge</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted text-[11px]">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-muted text-[11px]">
+                          {r.sourceImportId}
+                        </td>
+                        <td className="py-3 px-3 font-sans text-xs text-muted max-w-sm">
+                          {r.notes || 'Normal daily observation'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination controls */}
+            <div className="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-muted">
+              <div>
+                Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                {Math.min(currentPage * pageSize, filteredDemandRecords.length)} of{' '}
+                {filteredDemandRecords.length} demand observations
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-lg border border-border bg-stone text-ink disabled:opacity-30 cursor-pointer flex items-center gap-1 hover:border-ink transition-colors"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Previous</span>
+                </button>
+                <span className="px-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-lg border border-border bg-stone text-ink disabled:opacity-30 cursor-pointer flex items-center gap-1 hover:border-ink transition-colors"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -217,7 +422,7 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
               CSV Import Wizard (Preview & Confirm)
             </h4>
             <p className="text-muted text-xs font-sans mt-1">
-              Uploads are validated without committing. Review warnings, errors, and preview rows before confirming.
+              Uploads are validated without committing to <span className="font-mono text-ink">demand_records</span>. Review warnings, errors, and preview rows before confirming.
             </p>
           </div>
 
@@ -342,12 +547,12 @@ export const DemandInsightsView: React.FC<DemandInsightsViewProps> = ({ products
         </div>
       )}
 
-      {/* SUB-PANEL 3: ANOMALY AUDIT LOG */}
+      {/* SUB-PANEL 3: ANOMALY AUDIT LOG (Table 3: anomaly_reviews) */}
       {activeSubTab === 'anomalies' && (
         <AnomalyAuditLog products={products} />
       )}
 
-      {/* SUB-PANEL 4: HOLDOUT PROVER */}
+      {/* SUB-PANEL 4: HOLDOUT PROVER (Table 4: forecast_runs) */}
       {activeSubTab === 'forecast' && (
         <HoldoutProver products={products} />
       )}

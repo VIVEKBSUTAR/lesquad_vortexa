@@ -2,18 +2,20 @@
 
 import React from 'react';
 import { ProductWithComputed } from '@/lib/types';
-import { X, ShieldCheck, Clock, Layers, ArrowRight, Package, TrendingUp, AlertCircle } from 'lucide-react';
+import { X, ShieldCheck, Clock, Layers, ArrowRight, Package, TrendingUp, AlertCircle, Calculator, Scale } from 'lucide-react';
 
 interface ProductDetailModalProps {
   product: ProductWithComputed | null;
   onClose: () => void;
   onSimulateInCrisis: (product: ProductWithComputed) => void;
+  onOpenFormulasModal?: () => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   product,
   onClose,
   onSimulateInCrisis,
+  onOpenFormulasModal,
 }) => {
   if (!product) return null;
 
@@ -41,17 +43,33 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       dot: 'bg-brick',
       label: 'Reorder Now',
     },
-  }[m.status];
+    reorder_now: {
+      color: 'text-brick',
+      bg: 'bg-brick/10',
+      border: 'border-brick/30',
+      dot: 'bg-brick',
+      label: 'Reorder Now',
+    },
+  }[m.status] || {
+    color: 'text-brick',
+    bg: 'bg-brick/10',
+    border: 'border-brick/30',
+    dot: 'bg-brick',
+    label: 'Reorder Now',
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-surface rounded-2xl border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 lg:p-8 space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-surface rounded-3xl border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 lg:p-8 space-y-6">
         {/* Modal Header */}
         <div className="flex justify-between items-start pb-6 border-b border-border">
           <div>
-            <div className="flex items-center gap-3 mb-1.5">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="font-mono text-xs font-semibold text-muted bg-stone px-2.5 py-0.5 rounded border border-border">
                 {product.sku}
+              </span>
+              <span className="font-mono text-[11px] text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">
+                {product.category}
               </span>
               <div
                 className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] font-mono font-medium ${statusConfig.color} ${statusConfig.bg} ${statusConfig.border}`}
@@ -63,81 +81,104 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <h3 className="font-serif text-2xl lg:text-3xl text-ink font-light">
               {product.name}
             </h3>
-            <p className="text-muted text-xs font-sans mt-1">
+            <p className="text-muted text-xs font-sans mt-1 leading-relaxed">
               {product.description}
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-muted hover:text-ink hover:bg-stone transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-muted hover:text-ink hover:bg-stone transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Operational Replenishment Parameters (Zero formulas, pure business decision metrics) */}
-        <div className="space-y-4">
+        {/* Statistical Factor & Target SLA Bar */}
+        <div className="p-4 rounded-2xl bg-stone/70 border border-border flex flex-wrap justify-between items-center gap-3 font-mono text-xs">
+          <div className="flex items-center gap-2">
+            <Scale className="w-4 h-4 text-accent" />
+            <span className="text-ink font-semibold">
+              Selected Target SLA: {(product.targetServiceLevel * 100).toFixed(1)}%
+            </span>
+            <span className="text-accent font-mono bg-surface px-2 py-0.5 rounded border border-border">
+              Statistical Factor Z = {m.zScore.toFixed(3)}
+            </span>
+          </div>
+          <div className="text-muted text-[11px]">
+            Shelf Life: <span className="text-ink font-semibold">{product.perishabilityDays} Days</span>
+          </div>
+        </div>
+
+        {/* Operational Replenishment Parameters */}
+        <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className="font-mono text-xs uppercase tracking-wider text-accent font-semibold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4" /> Replenishment Thresholds & Target SLA
+              <ShieldCheck className="w-4 h-4" /> Recommended Replenishment Policy
             </span>
-            <span className="font-mono text-xs text-muted">
-              Target SLA: {(product.targetServiceLevel * 100).toFixed(1)}%
-            </span>
+            {onOpenFormulasModal && (
+              <button
+                onClick={onOpenFormulasModal}
+                className="text-xs font-mono text-muted hover:text-accent flex items-center gap-1 cursor-pointer"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>Formulas & Assumptions</span>
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-xs">
-            <div className="p-4 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Reorder Threshold</div>
+            <div className="p-4 rounded-2xl bg-surface border border-border">
+              <div className="text-[10px] uppercase text-muted">When to Reorder</div>
               <div className="text-xl font-semibold text-brick mt-1">
                 {Math.round(m.reorderPoint)}{' '}
                 <span className="text-xs font-normal text-muted">units</span>
               </div>
-              <div className="text-[10px] text-muted mt-1">Trigger level</div>
+              <div className="text-[10px] text-muted mt-1">Reorder Point (ROP)</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Safety Buffer</div>
+            <div className="p-4 rounded-2xl bg-surface border border-border">
+              <div className="text-[10px] uppercase text-muted">How Much to Reorder</div>
+              <div className="text-xl font-semibold text-accent mt-1">
+                {Math.round(m.eoq)}{' '}
+                <span className="text-xs font-normal text-muted">units</span>
+              </div>
+              <div className="text-[10px] text-muted mt-1">Batch Size (EOQ)</div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-surface border border-border">
+              <div className="text-[10px] uppercase text-muted">Safety Stock Buffer</div>
               <div className="text-xl font-semibold text-moss mt-1">
                 {Math.round(m.safetyStock)}{' '}
                 <span className="text-xs font-normal text-muted">units</span>
               </div>
-              <div className="text-[10px] text-muted mt-1">Lead-time hedge</div>
+              <div className="text-[10px] text-muted mt-1">Dual-variance hedge</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Recommended Batch</div>
+            <div className="p-4 rounded-2xl bg-surface border border-border">
+              <div className="text-[10px] uppercase text-muted">Available Shelf Cover</div>
               <div className="text-xl font-semibold text-ink mt-1">
-                {Math.round(m.eoq)}{' '}
-                <span className="text-xs font-normal text-muted">units</span>
-              </div>
-              <div className="text-[10px] text-muted mt-1">Cost-balanced batch</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Available Cover</div>
-              <div className="text-xl font-semibold text-accent mt-1">
                 {m.daysOfCover}{' '}
                 <span className="text-xs font-normal text-muted">days</span>
               </div>
-              <div className="text-[10px] text-muted mt-1">At daily demand pace</div>
+              <div className="text-[10px] text-muted mt-1">Daily pace: ~{m.avgDemand.toFixed(1)} u/d</div>
             </div>
           </div>
         </div>
 
-        {/* Inventory Position Audit */}
-        <div className="p-4 rounded-xl bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted mb-3 font-semibold">
-            Live Inventory Position State
+        {/* Live Inventory Position Audit */}
+        <div className="p-4 rounded-2xl bg-stone/70 border border-border">
+          <div className="text-[10px] font-mono uppercase text-muted mb-3 font-semibold flex justify-between">
+            <span>Inventory Position Formula (On-Hand + On-Order - Backorders)</span>
+            <span className="text-accent font-semibold">Effective: {m.inventoryPosition} u</span>
           </div>
           <div className="grid grid-cols-4 gap-4 font-mono text-xs text-center">
             <div>
-              <div className="text-muted text-[10px] uppercase">On Hand</div>
+              <div className="text-muted text-[10px] uppercase">Stock on Shelf</div>
               <div className="font-semibold text-ink text-base mt-0.5">{product.onHand}</div>
             </div>
             <div>
-              <div className="text-muted text-[10px] uppercase">On Order</div>
+              <div className="text-muted text-[10px] uppercase">In Transit (PO)</div>
               <div className="font-semibold text-slate text-base mt-0.5">+{product.onOrder}</div>
             </div>
             <div>
@@ -145,8 +186,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="font-semibold text-brick text-base mt-0.5">-{product.backorders}</div>
             </div>
             <div className="border-l border-border pl-2">
-              <div className="text-muted text-[10px] uppercase">Effective Position</div>
-              <div className="font-semibold text-accent text-base mt-0.5">{m.inventoryPosition}</div>
+              <div className="text-muted text-[10px] uppercase">Available Cover</div>
+              <div className="font-semibold text-moss text-base mt-0.5">{m.daysOfCover}d</div>
             </div>
           </div>
         </div>
@@ -155,15 +196,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <div>
           <div className="flex justify-between items-center mb-3">
             <span className="font-mono text-xs uppercase tracking-wider text-muted font-semibold flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> Supplier Lead Time History (10 Deliveries)
+              <Clock className="w-3.5 h-3.5" /> Supplier Delivery Lead Time History (10 Receipts)
             </span>
             <span className="font-mono text-xs text-muted">
-              Average: {m.avgLeadTime.toFixed(1)}d
+              Mean: {m.avgLeadTime.toFixed(1)}d (σ_L = {m.leadTimeStdDev.toFixed(1)}d)
             </span>
           </div>
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 font-mono text-xs text-center">
             {product.leadTimes.map((lt, idx) => (
-              <div key={idx} className="p-2 rounded-lg bg-stone border border-border">
+              <div key={idx} className="p-2 rounded-xl bg-stone border border-border">
                 <div className="text-[9px] text-muted">PO {idx + 1}</div>
                 <div className="font-semibold text-ink mt-0.5">{lt}d</div>
               </div>
@@ -172,9 +213,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </div>
 
         {/* Modal Actions */}
-        <div className="pt-4 border-t border-border flex justify-between items-center">
+        <div className="pt-4 border-t border-border flex flex-wrap justify-between items-center gap-3">
           <div className="text-xs font-mono text-muted">
-            Unit Cost: ${product.unitCost} • Annual Carrying Cost: ${Math.round(m.annualHoldingCost).toLocaleString()}
+            Unit Cost: ${product.unitCost.toFixed(2)} • Carrying Cost: ${product.holdingCost.toFixed(2)}/u/yr
           </div>
           <div className="flex gap-3">
             <button
@@ -190,7 +231,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               }}
               className="px-5 py-2 bg-ink text-surface rounded-xl text-xs font-mono hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
             >
-              Simulate in Crisis Lab <ArrowRight className="w-3.5 h-3.5" />
+              Simulate Stress in Crisis Lab <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

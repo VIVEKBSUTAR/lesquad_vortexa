@@ -197,13 +197,17 @@ export function computeProductMetrics(
   const reorderPoint = calculateReorderPoint(avgDemand, avgLeadTime, safetyStock);
 
   const annualDemand = avgDemand * 365;
-  const eoq = calculateEOQ(annualDemand, product.orderingCost, product.holdingCost);
+  const rawEoq = calculateEOQ(annualDemand, product.orderingCost, product.holdingCost);
+  let eoq = rawEoq;
+  if (product.packSize && product.packSize > 1) {
+    eoq = Math.ceil(eoq / product.packSize) * product.packSize;
+  }
+  if (product.minimumOrderQty && product.minimumOrderQty > 1) {
+    eoq = Math.max(product.minimumOrderQty, eoq);
+  }
 
-  const inventoryPosition = calculateInventoryPosition(
-    product.onHand,
-    product.onOrder,
-    product.backorders
-  );
+  // Schema Note: On-Hand minus committed quantity
+  const inventoryPosition = Math.max(0, product.onHand - (product.committedQty || 0));
 
   // Status classification: Moss (healthy), Ochre (watch), Brick (order-now)
   let status: ProductStatus = 'healthy';
@@ -223,7 +227,6 @@ export function computeProductMetrics(
   let stockoutRiskPct = (1 - targetSL) * 100;
   if (stdLTD > 0) {
     const k = (inventoryPosition - avgDemand * avgLeadTime) / stdLTD;
-    // tail probability approx
     if (k <= 0) {
       stockoutRiskPct = 50 + Math.min(50, Math.abs(k) * 20);
     } else {
@@ -241,6 +244,7 @@ export function computeProductMetrics(
     zScore,
     safetyStock,
     reorderPoint,
+    rawEoq,
     eoq,
     inventoryPosition,
     status,

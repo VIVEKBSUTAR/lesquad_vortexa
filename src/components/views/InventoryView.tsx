@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ProductWithComputed } from '@/lib/types';
+import { ProductWithComputed, RecommendationSnapshot } from '@/lib/types';
 import { apiClient, RecommendationResponse } from '@/lib/api';
+import { getRecommendationSnapshots } from '@/lib/data';
 import { ProductDetailModal } from '@/components/dashboard/ProductDetailModal';
 import {
   Plus,
@@ -17,6 +18,15 @@ import {
   ArrowUpRight,
   Save,
   RotateCcw,
+  FileCode,
+  Copy,
+  Check,
+  Package,
+  ShieldCheck,
+  TrendingUp,
+  DollarSign,
+  Box,
+  Truck,
 } from 'lucide-react';
 
 interface InventoryViewProps {
@@ -30,6 +40,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   onRefreshProducts,
   onSimulateInCrisis,
 }) => {
+  const [activeTableTab, setActiveTableTab] = useState<'products' | 'recommendations'>('products');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<ProductWithComputed | null>(null);
@@ -38,24 +49,42 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [latestRec, setLatestRec] = useState<RecommendationResponse | null>(null);
   const [isCalculatingRec, setIsCalculatingRec] = useState(false);
   const [recSuccessMessage, setRecSuccessMessage] = useState<string | null>(null);
+  const [inspectRecJson, setInspectRecJson] = useState<RecommendationSnapshot | null>(null);
+  const [copiedJson, setCopiedJson] = useState(false);
 
-  // New Product Form State
+  // Recommendations history (Table 5: recommendations)
+  const [recommendationsList, setRecommendationsList] = useState<RecommendationSnapshot[]>(() =>
+    getRecommendationSnapshots(products)
+  );
+
+  // New Product Form State (matching Table 1: products)
   const [newProductForm, setNewProductForm] = useState({
     sku: '',
     product_name: '',
-    unit_of_measure: 'units',
-    on_hand_qty: 50,
-    average_lead_time_days: 14,
-    unit_cost: 150,
-    ordering_cost: 80,
-    holding_cost_per_unit_year: 25,
+    unit_of_measure: '1L Tetra Pak',
+    on_hand_qty: 60,
+    committed_qty: 12,
+    unit_cost: 1.50,
+    ordering_cost: 18.00,
+    holding_cost_per_unit_year: 0.45,
     target_service_level: 0.95,
+    minimum_order_qty: 12,
+    pack_size: 6,
+    average_lead_time_days: 3,
+    lead_time_stddev_days: 0.8,
   });
 
-  // Edit Product Form State
+  // Edit Product Form State (matching Table 1: products)
   const [editForm, setEditForm] = useState({
     on_hand_qty: 0,
+    committed_qty: 0,
+    unit_of_measure: '',
+    unit_cost: 0,
+    ordering_cost: 0,
+    holding_cost_per_unit_year: 0,
     target_service_level: 0.95,
+    minimum_order_qty: 1,
+    pack_size: 1,
     average_lead_time_days: 14,
     lead_time_stddev_days: 2.0,
   });
@@ -70,11 +99,29 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     return matchesSearch && matchesCat;
   });
 
+  const filteredRecommendations = recommendationsList.filter((rec) => {
+    const product = products.find((p) => p.id === rec.productId);
+    const sku = product?.sku || '';
+    const name = product?.name || '';
+    return (
+      sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      rec.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
   const handleStartEdit = (p: ProductWithComputed) => {
     setEditingProduct(p);
     setEditForm({
       on_hand_qty: p.onHand,
+      committed_qty: p.committedQty || 0,
+      unit_of_measure: p.unitOfMeasure || 'units',
+      unit_cost: p.unitCost,
+      ordering_cost: p.orderingCost,
+      holding_cost_per_unit_year: p.holdingCost,
       target_service_level: p.targetServiceLevel,
+      minimum_order_qty: p.minimumOrderQty || 1,
+      pack_size: p.packSize || 1,
       average_lead_time_days: Math.round(p.metrics.avgLeadTime),
       lead_time_stddev_days: Number(p.metrics.leadTimeStdDev.toFixed(1)),
     });
@@ -82,10 +129,27 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   const handleSaveEdit = async () => {
     if (!editingProduct) return;
-    await apiClient.updateProduct(editingProduct.id, editForm);
+    await apiClient.updateProduct(editingProduct.id, {
+      on_hand_qty: editForm.on_hand_qty,
+      target_service_level: editForm.target_service_level,
+      average_lead_time_days: editForm.average_lead_time_days,
+      lead_time_stddev_days: editForm.lead_time_stddev_days,
+    });
     // Locally apply update
     editingProduct.onHand = editForm.on_hand_qty;
+    editingProduct.committedQty = editForm.committed_qty;
+    editingProduct.unitOfMeasure = editForm.unit_of_measure;
+    editingProduct.unitCost = editForm.unit_cost;
+    editingProduct.orderingCost = editForm.ordering_cost;
+    editingProduct.holdingCost = editForm.holding_cost_per_unit_year;
     editingProduct.targetServiceLevel = editForm.target_service_level;
+    editingProduct.minimumOrderQty = editForm.minimum_order_qty;
+    editingProduct.packSize = editForm.pack_size;
+    editingProduct.baseLeadTimeDays = editForm.average_lead_time_days;
+    editingProduct.leadTimeStdDevDays = editForm.lead_time_stddev_days;
+
+    // Refresh recommendations list
+    setRecommendationsList(getRecommendationSnapshots(products));
     setEditingProduct(null);
     onRefreshProducts();
   };
@@ -103,217 +167,477 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     setRecSuccessMessage(null);
     const rec = await apiClient.calculateRecommendation(p.id);
     setLatestRec(rec);
+
+    // Also add to snapshots history table (Table 5)
+    const newSnapshot: RecommendationSnapshot = {
+      id: rec.recommendation_id,
+      productId: p.id,
+      calculatedAt: rec.calculated_at,
+      formulaVersion: 'StockSense-OR-v2.4 (r, Q Continuous Review)',
+      inputSnapshot: JSON.stringify(rec.inputs),
+      inventoryPosition: rec.inputs.inventory_position,
+      meanDailyDemand: rec.inputs.mean_daily_demand,
+      dailyDemandStddev: rec.inputs.daily_demand_stddev,
+      averageLeadTimeDays: rec.inputs.average_lead_time_days,
+      leadTimeStddevDays: rec.inputs.lead_time_stddev_days,
+      targetServiceLevel: rec.inputs.target_service_level,
+      zFactor: rec.inputs.z_value,
+      expectedLeadTimeDemand: rec.calculation.expected_lead_time_demand,
+      safetyStock: rec.calculation.safety_stock,
+      reorderPoint: rec.calculation.reorder_point,
+      annualDemand: Number((rec.inputs.mean_daily_demand * 365).toFixed(1)),
+      rawEoq: rec.calculation.recommended_order_qty,
+      suggestedOrderQty: rec.calculation.recommended_order_qty,
+      status: rec.status,
+      explanation: rec.explanation.join(' '),
+      assumptions: JSON.stringify({
+        policy: 'Continuous Review (r, Q)',
+        service_level: rec.inputs.target_service_level,
+        z_factor: rec.inputs.z_value,
+      }),
+      createdAt: rec.calculated_at,
+    };
+
+    setRecommendationsList((prev) => [newSnapshot, ...prev]);
     setIsCalculatingRec(false);
-    setRecSuccessMessage(`Recommendation snapshot ${rec.recommendation_id} calculated.`);
+    setRecSuccessMessage(`New Recommendation Snapshot ${rec.recommendation_id} generated.`);
+  };
+
+  const handleCopyJson = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2000);
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Action Bar */}
+      {/* Action Bar & Schema Tab Switcher */}
       <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone border border-border text-accent font-semibold uppercase tracking-wider">
+              StockSense Database Schema Integration
+            </span>
+          </div>
           <h3 className="font-serif text-2xl font-light text-ink">
-            Master Inventory & Replenishment Rules
+            Master Inventory & Replenishment Tables
           </h3>
           <p className="text-muted text-xs font-sans mt-0.5">
-            Maintain SKU profiles, adjust on-hand inventory, and audit deterministic order thresholds.
+            Strict 1:1 mapping with core database tables <span className="font-mono text-ink">products</span> (Table 1) and immutable <span className="font-mono text-ink">recommendations</span> (Table 5).
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Table Tab Selector */}
+          <div className="flex items-center gap-1 bg-stone p-1 rounded-xl border border-border text-xs font-mono">
+            <button
+              onClick={() => setActiveTableTab('products')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                activeTableTab === 'products'
+                  ? 'bg-ink text-surface font-semibold shadow-xs'
+                  : 'text-muted hover:text-ink'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>Products Master</span>
+            </button>
+            <button
+              onClick={() => setActiveTableTab('recommendations')}
+              className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                activeTableTab === 'recommendations'
+                  ? 'bg-ink text-surface font-semibold shadow-xs'
+                  : 'text-muted hover:text-ink'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Recommendations Snapshot</span>
+            </button>
+          </div>
+
           {/* Search */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search SKU or name..."
+              placeholder="Search SKU, name, ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-stone text-ink border border-border rounded-xl pl-9 pr-3 py-2 text-xs font-mono focus:outline-none focus:border-accent w-48 sm:w-64"
+              className="bg-stone text-ink border border-border rounded-xl pl-9 pr-3 py-2 text-xs font-mono focus:outline-none focus:border-accent w-44 sm:w-56"
             />
           </div>
 
-          {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-stone text-ink border border-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
-          >
-            <option value="all">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          {activeTableTab === 'products' && (
+            <>
+              {/* Category Filter */}
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="bg-stone text-ink border border-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-accent cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
 
-          {/* Add Product Button */}
+              {/* Add Product Button */}
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 bg-ink text-surface hover:bg-accent rounded-xl text-xs font-mono font-medium transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create SKU</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Rec Success Notification Banner */}
+      {recSuccessMessage && (
+        <div className="p-4 rounded-xl bg-moss/10 border border-moss/30 flex items-center justify-between font-mono text-xs text-moss animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-moss" />
+            <span>{recSuccessMessage}</span>
+          </div>
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-ink text-surface hover:bg-accent rounded-xl text-xs font-mono font-medium transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+            onClick={() => setRecSuccessMessage(null)}
+            className="text-moss/80 hover:text-moss text-[11px] underline cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Product</span>
+            Dismiss
           </button>
         </div>
-      </div>
+      )}
 
-      {/* Inventory Table */}
-      <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-xs">
-            <thead>
-              <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider">
-                <th className="py-3 px-3">SKU</th>
-                <th className="py-3 px-3">Product Name & Category</th>
-                <th className="py-3 px-3">On Hand</th>
-                <th className="py-3 px-3">On Order</th>
-                <th className="py-3 px-3">Position</th>
-                <th className="py-3 px-3">Reorder Point</th>
-                <th className="py-3 px-3">Safety Stock</th>
-                <th className="py-3 px-3">SLA</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {filteredProducts.map((p) => {
-                const statusConfig = {
-                  healthy: { color: 'text-moss', bg: 'bg-moss/10', label: 'Healthy' },
-                  watch: { color: 'text-ochre', bg: 'bg-ochre/10', label: 'Watch' },
-                  order: { color: 'text-brick', bg: 'bg-brick/10', label: 'Order Now' },
-                }[p.metrics.status];
-
-                return (
-                  <tr key={p.id} className="hover:bg-stone/50 transition-colors">
-                    <td className="py-3.5 px-3 font-semibold text-ink whitespace-nowrap">
-                      {p.sku}
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <div className="font-sans font-medium text-ink">{p.name}</div>
-                      <div className="text-[10px] text-muted font-sans">{p.category}</div>
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap font-medium text-ink">
-                      {p.onHand} units
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap text-slate">
-                      +{p.onOrder}
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-accent">
-                      {p.metrics.inventoryPosition}
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-brick">
-                      {Math.round(p.metrics.reorderPoint)}
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap text-moss font-semibold">
-                      {Math.round(p.metrics.safetyStock)}
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap text-muted">
-                      {(p.targetServiceLevel * 100).toFixed(0)}%
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${statusConfig.color} ${statusConfig.bg}`}>
-                        {statusConfig.label}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap text-right space-x-2">
-                      <button
-                        onClick={() => handleStartEdit(p)}
-                        className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:border-ink text-muted hover:text-ink text-[11px] transition-colors cursor-pointer"
-                        title="Update Stock & SLA"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleCalculateRecommendation(p)}
-                        className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:bg-ink hover:text-surface text-[11px] transition-colors cursor-pointer"
-                        title="Calculate Replenishment Snapshot"
-                      >
-                        Calculate
-                      </button>
-                      <button
-                        onClick={() => setSelectedProduct(p)}
-                        className="px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-accent text-accent text-[11px] transition-colors cursor-pointer"
-                      >
-                        Audit
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Latest Recommendation Snapshot Panel (Section 7 of contract) */}
-      {latestRec && (
-        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm space-y-4">
-          <div className="flex justify-between items-center pb-3 border-b border-border">
+      {/* TABLE TAB 1: products (Table 1) */}
+      {activeTableTab === 'products' && (
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono">
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-accent font-semibold">
-                Recommendation Snapshot • {latestRec.recommendation_id}
-              </div>
+              <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+                Core Relational Table • products
+              </span>
               <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
-                Deterministic Order Recommendation
+                SKU Master Fleet & Replenishment Bounds
               </h4>
             </div>
-            <span className="text-xs font-mono text-muted">
-              Calculated at: {new Date(latestRec.calculated_at).toLocaleTimeString()}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-xs">
-            <div className="p-3.5 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Recommendation</div>
-              <div className={`text-base font-semibold mt-1 ${latestRec.status === 'reorder_now' ? 'text-brick' : 'text-moss'}`}>
-                {latestRec.status.replace('_', ' ').toUpperCase()}
-              </div>
-            </div>
-            <div className="p-3.5 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Recommended Order Qty</div>
-              <div className="text-base font-semibold text-ink mt-1">
-                {latestRec.calculation.recommended_order_qty} units
-              </div>
-            </div>
-            <div className="p-3.5 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Reorder Point</div>
-              <div className="text-base font-semibold text-brick mt-1">
-                {latestRec.calculation.reorder_point} ROP
-              </div>
-            </div>
-            <div className="p-3.5 rounded-xl bg-stone/70 border border-border">
-              <div className="text-[10px] uppercase text-muted">Safety Stock</div>
-              <div className="text-base font-semibold text-moss mt-1">
-                {latestRec.calculation.safety_stock} SS
-              </div>
+            <div className="flex items-center gap-4 text-muted text-[11px] mt-2 sm:mt-0">
+              <span>Showing {filteredProducts.length} of {products.length} SKUs</span>
+              <span className="text-moss flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Deterministic bounds locked
+              </span>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-stone/50 border border-border space-y-1 text-xs font-sans text-muted">
-            <div className="font-mono text-[10px] uppercase text-ink font-semibold mb-1">
-              Deterministic OR Justification:
-            </div>
-            {latestRec.explanation.map((exp, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                <span>{exp}</span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead>
+                <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider bg-stone/30">
+                  <th className="py-3 px-3">SKU</th>
+                  <th className="py-3 px-3">Product Name & Unit</th>
+                  <th className="py-3 px-3">On Hand</th>
+                  <th className="py-3 px-3">Committed</th>
+                  <th className="py-3 px-3">Inv. Position</th>
+                  <th className="py-3 px-3">Lead Time (L̄ ± σL)</th>
+                  <th className="py-3 px-3">Reorder Point (ROP)</th>
+                  <th className="py-3 px-3">Safety Stock (SS)</th>
+                  <th className="py-3 px-3">Order Constraints</th>
+                  <th className="py-3 px-3">Target SLA & Z</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {filteredProducts.map((p) => {
+                  const statusConfig = {
+                    healthy: { color: 'text-moss', bg: 'bg-moss/10', label: 'Healthy' },
+                    watch: { color: 'text-ochre', bg: 'bg-ochre/10', label: 'Watch' },
+                    order: { color: 'text-brick', bg: 'bg-brick/10', label: 'Order Now' },
+                    reorder_now: { color: 'text-brick', bg: 'bg-brick/10', label: 'Order Now' },
+                  }[p.metrics.status];
+
+                  return (
+                    <tr key={p.id} className="hover:bg-stone/50 transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-ink whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{p.sku}</span>
+                        </div>
+                        <span className="text-[10px] text-muted block font-normal">{p.id}</span>
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <div className="font-sans font-medium text-ink">{p.name}</div>
+                        <div className="text-[10px] text-muted font-mono flex items-center gap-2">
+                          <span>{p.unitOfMeasure}</span>
+                          <span>•</span>
+                          <span className="text-accent">{p.category}</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap font-medium text-ink">
+                        {p.onHand}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
+                        {p.committedQty || 0}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-accent">
+                        {p.metrics.inventoryPosition}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-slate">
+                        {p.baseLeadTimeDays}d ± {p.leadTimeStdDevDays.toFixed(1)}d
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-brick">
+                        {Math.round(p.metrics.reorderPoint)}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-moss font-semibold">
+                        {Math.round(p.metrics.safetyStock)}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-[11px] text-muted">
+                        <span>Pack: {p.packSize || 1}</span>
+                        <span className="mx-1">•</span>
+                        <span>MOQ: {p.minimumOrderQty || 1}</span>
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
+                        <span className="font-medium text-ink">{(p.targetServiceLevel * 100).toFixed(0)}%</span>
+                        <span className="text-[10px] text-accent block">Z = {p.metrics.zScore.toFixed(3)}</span>
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${statusConfig.color} ${statusConfig.bg}`}>
+                          {statusConfig.label}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-right space-x-1.5">
+                        <button
+                          onClick={() => handleStartEdit(p)}
+                          className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:border-ink text-muted hover:text-ink text-[11px] transition-colors cursor-pointer"
+                          title="Update SKU Parameters (Table 1)"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleCalculateRecommendation(p)}
+                          className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:bg-ink hover:text-surface text-[11px] transition-colors cursor-pointer"
+                          title="Calculate Replenishment Snapshot (Table 5)"
+                        >
+                          Calculate
+                        </button>
+                        <button
+                          onClick={() => setSelectedProduct(p)}
+                          className="px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-accent text-accent text-[11px] transition-colors cursor-pointer"
+                          title="View Full Technical Audit"
+                        >
+                          Audit
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Edit Product Drawer / Modal */}
-      {editingProduct && (
+      {/* TABLE TAB 2: recommendations (Table 5) */}
+      {activeTableTab === 'recommendations' && (
+        <div className="bg-surface/98 backdrop-blur-xl border border-border rounded-2xl p-6 shadow-sm overflow-hidden space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono">
+            <div>
+              <span className="text-[10px] uppercase tracking-wider text-accent font-semibold">
+                Immutable Snapshot Log • recommendations (Table 5)
+              </span>
+              <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
+                Deterministic Calculation History
+              </h4>
+              <p className="text-muted text-xs font-sans mt-0.5">
+                Each replenishment run creates an immutable row with inputs, service factor, and human-readable explanation.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-muted text-[11px] mt-2 sm:mt-0">
+              <span>{filteredRecommendations.length} snapshots recorded</span>
+              <span className="text-accent flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" /> Immutable ledger
+              </span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead>
+                <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider bg-stone/30">
+                  <th className="py-3 px-3">Snapshot ID</th>
+                  <th className="py-3 px-3">SKU & Product</th>
+                  <th className="py-3 px-3">Calculated At</th>
+                  <th className="py-3 px-3">Formula Version</th>
+                  <th className="py-3 px-3">Inv. Position</th>
+                  <th className="py-3 px-3">LT Demand (d̄ · L̄)</th>
+                  <th className="py-3 px-3">Safety Stock (SS)</th>
+                  <th className="py-3 px-3">Reorder Point (ROP)</th>
+                  <th className="py-3 px-3">Raw EOQ</th>
+                  <th className="py-3 px-3">Suggested Order</th>
+                  <th className="py-3 px-3">Factor Z</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3 text-right">Payload</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {filteredRecommendations.map((rec) => {
+                  const product = products.find((p) => p.id === rec.productId);
+                  const isReorder = rec.status === 'reorder_now';
+
+                  return (
+                    <tr key={rec.id} className="hover:bg-stone/50 transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-accent whitespace-nowrap">
+                        {rec.id}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <div className="font-sans font-medium text-ink">{product?.name || rec.productId}</div>
+                        <div className="text-[10px] text-muted font-mono">{product?.sku}</div>
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
+                        {new Date(rec.calculatedAt).toLocaleDateString()} {new Date(rec.calculatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-[11px] text-muted">
+                        {rec.formulaVersion}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap font-medium text-ink">
+                        {rec.inventoryPosition}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-slate">
+                        {rec.expectedLeadTimeDemand}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-moss font-semibold">
+                        {rec.safetyStock}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-brick font-semibold">
+                        {rec.reorderPoint}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-muted">
+                        {rec.rawEoq}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap font-semibold text-ink">
+                        {rec.suggestedOrderQty} {product?.unitOfMeasure}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-accent">
+                        {rec.zFactor.toFixed(3)}
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${
+                            isReorder
+                              ? 'bg-brick/10 text-brick'
+                              : rec.status === 'watch'
+                              ? 'bg-ochre/10 text-ochre'
+                              : 'bg-moss/10 text-moss'
+                          }`}
+                        >
+                          {rec.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 whitespace-nowrap text-right">
+                        <button
+                          onClick={() => setInspectRecJson(rec)}
+                          className="px-2.5 py-1 rounded-lg border border-border bg-stone hover:bg-ink hover:text-surface text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                          title="Inspect JSON input snapshot and assumptions"
+                        >
+                          <FileCode className="w-3.5 h-3.5 text-accent" />
+                          <span>Inspect JSON</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* JSON Inspector Modal for Table 5 (recommendations) */}
+      {inspectRecJson && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
-          <div className="bg-surface rounded-2xl border border-border w-full max-w-lg p-6 lg:p-8 shadow-2xl space-y-6">
+          <div className="bg-surface rounded-2xl border border-border w-full max-w-2xl p-6 lg:p-8 shadow-2xl space-y-6">
             <div className="flex justify-between items-center pb-4 border-b border-border">
               <div>
-                <span className="font-mono text-xs text-muted">{editingProduct.sku}</span>
-                <h4 className="font-serif text-2xl font-light text-ink">
-                  Edit Stock & Lead Time
+                <span className="font-mono text-xs text-accent uppercase font-semibold">
+                  Table 5 • recommendations snapshot
+                </span>
+                <h4 className="font-serif text-2xl font-light text-ink mt-0.5">
+                  Input Snapshot & Assumptions Payload
                 </h4>
+                <div className="text-muted font-mono text-xs mt-0.5">{inspectRecJson.id}</div>
+              </div>
+              <button
+                onClick={() => setInspectRecJson(null)}
+                className="text-muted hover:text-ink text-xs font-mono cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1 text-xs font-mono">
+                  <span className="text-muted uppercase text-[10px] font-semibold">
+                    1. input_snapshot (JSONB)
+                  </span>
+                  <button
+                    onClick={() => handleCopyJson(inspectRecJson.inputSnapshot)}
+                    className="text-accent hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
+                  >
+                    {copiedJson ? <Check className="w-3 h-3 text-moss" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedJson ? 'Copied' : 'Copy JSON'}</span>
+                  </button>
+                </div>
+                <pre className="p-3.5 rounded-xl bg-stone border border-border font-mono text-[11px] text-ink overflow-x-auto max-h-48 leading-relaxed">
+                  {JSON.stringify(JSON.parse(inspectRecJson.inputSnapshot), null, 2)}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-muted uppercase text-[10px] font-semibold mb-1 font-mono">
+                  2. assumptions (JSONB)
+                </div>
+                <pre className="p-3.5 rounded-xl bg-stone border border-border font-mono text-[11px] text-ink overflow-x-auto max-h-36 leading-relaxed">
+                  {JSON.stringify(JSON.parse(inspectRecJson.assumptions), null, 2)}
+                </pre>
+              </div>
+
+              <div>
+                <div className="text-muted uppercase text-[10px] font-semibold mb-1 font-mono">
+                  3. explanation (TEXT)
+                </div>
+                <p className="p-3.5 rounded-xl bg-stone/60 border border-border font-sans text-xs text-ink leading-relaxed">
+                  {inspectRecJson.explanation}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-border flex justify-end">
+              <button
+                onClick={() => setInspectRecJson(null)}
+                className="px-5 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Drawer / Modal (Table 1: products) */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
+          <div className="bg-surface rounded-2xl border border-border w-full max-w-xl p-6 lg:p-8 shadow-2xl space-y-6">
+            <div className="flex justify-between items-center pb-4 border-b border-border">
+              <div>
+                <span className="font-mono text-xs text-accent font-semibold uppercase">
+                  Table 1 • products schema editor
+                </span>
+                <h4 className="font-serif text-2xl font-light text-ink mt-0.5">
+                  Update SKU: {editingProduct.sku}
+                </h4>
+                <div className="text-muted font-sans text-xs">{editingProduct.name}</div>
               </div>
               <button
                 onClick={() => setEditingProduct(null)}
@@ -323,11 +647,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </button>
             </div>
 
-            <div className="space-y-4 font-mono text-xs">
+            <div className="grid grid-cols-2 gap-4 font-mono text-xs">
               <div>
-                <label className="block text-muted uppercase text-[10px] mb-1">On Hand Quantity</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  On Hand Qty (on_hand_qty) *
+                </label>
                 <input
                   type="number"
+                  min="0"
                   value={editForm.on_hand_qty}
                   onChange={(e) => setEditForm({ ...editForm, on_hand_qty: parseInt(e.target.value) || 0 })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
@@ -335,10 +662,39 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-muted uppercase text-[10px] mb-1">Target Service Level (0.80 - 0.999)</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  Committed Qty (committed_qty) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.committed_qty}
+                  onChange={(e) => setEditForm({ ...editForm, committed_qty: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  Unit of Measure (unit_of_measure) *
+                </label>
+                <input
+                  type="text"
+                  value={editForm.unit_of_measure}
+                  onChange={(e) => setEditForm({ ...editForm, unit_of_measure: e.target.value })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  Target SLA (target_service_level)
+                </label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0.80"
+                  max="0.999"
                   value={editForm.target_service_level}
                   onChange={(e) => setEditForm({ ...editForm, target_service_level: parseFloat(e.target.value) || 0.95 })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
@@ -346,11 +702,54 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-muted uppercase text-[10px] mb-1">Average Lead Time (Days)</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  Avg Lead Time (average_lead_time_days)
+                </label>
                 <input
                   type="number"
+                  min="1"
                   value={editForm.average_lead_time_days}
                   onChange={(e) => setEditForm({ ...editForm, average_lead_time_days: parseInt(e.target.value) || 1 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  Lead Time StdDev (lead_time_stddev_days)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editForm.lead_time_stddev_days}
+                  onChange={(e) => setEditForm({ ...editForm, lead_time_stddev_days: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  Min Order Qty (minimum_order_qty / MOQ)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editForm.minimum_order_qty}
+                  onChange={(e) => setEditForm({ ...editForm, minimum_order_qty: parseInt(e.target.value) || 1 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">
+                  Pack Size (pack_size)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editForm.pack_size}
+                  onChange={(e) => setEditForm({ ...editForm, pack_size: parseInt(e.target.value) || 1 })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
                 />
               </div>
@@ -368,14 +767,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 className="px-5 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors cursor-pointer flex items-center gap-2"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>Save Changes</span>
+                <span>Save to products Table</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create Product Modal */}
+      {/* Create Product Modal (Table 1: products) */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
           <form
@@ -383,9 +782,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="bg-surface rounded-2xl border border-border w-full max-w-xl p-6 lg:p-8 shadow-2xl space-y-6"
           >
             <div className="flex justify-between items-center pb-4 border-b border-border">
-              <h4 className="font-serif text-2xl font-light text-ink">
-                Create New SKU
-              </h4>
+              <div>
+                <span className="font-mono text-xs text-accent font-semibold uppercase">
+                  Table 1 • Insert Record
+                </span>
+                <h4 className="font-serif text-2xl font-light text-ink mt-0.5">
+                  Create SKU in products
+                </h4>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
@@ -397,11 +801,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
             <div className="grid grid-cols-2 gap-4 font-mono text-xs">
               <div>
-                <label className="block text-muted uppercase text-[10px] mb-1">SKU Code *</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">SKU Code (sku) *</label>
                 <input
                   type="text"
                   required
-                  placeholder="SKU-9901-EXM"
+                  placeholder="SKU-DRY-MILK-1L"
                   value={newProductForm.sku}
                   onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
@@ -409,9 +813,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-muted uppercase text-[10px] mb-1">Unit of Measure</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">Unit of Measure (unit_of_measure) *</label>
                 <input
                   type="text"
+                  required
+                  placeholder="1L Tetra Pak"
                   value={newProductForm.unit_of_measure}
                   onChange={(e) => setNewProductForm({ ...newProductForm, unit_of_measure: e.target.value })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
@@ -419,11 +825,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </div>
 
               <div className="col-span-2">
-                <label className="block text-muted uppercase text-[10px] mb-1">Product Name *</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">Product Name (product_name) *</label>
                 <input
                   type="text"
                   required
-                  placeholder="High-Torque Servo Motor 400W"
+                  placeholder="Amul Taaza Toned Milk"
                   value={newProductForm.product_name}
                   onChange={(e) => setNewProductForm({ ...newProductForm, product_name: e.target.value })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
@@ -431,11 +837,23 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-muted uppercase text-[10px] mb-1">Initial On Hand Qty</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">On Hand Qty (on_hand_qty)</label>
                 <input
                   type="number"
+                  min="0"
                   value={newProductForm.on_hand_qty}
                   onChange={(e) => setNewProductForm({ ...newProductForm, on_hand_qty: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">Committed Qty (committed_qty)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={newProductForm.committed_qty}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, committed_qty: parseInt(e.target.value) || 0 })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
                 />
               </div>
@@ -444,8 +862,21 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <label className="block text-muted uppercase text-[10px] mb-1">Avg Lead Time (Days)</label>
                 <input
                   type="number"
+                  min="1"
                   value={newProductForm.average_lead_time_days}
                   onChange={(e) => setNewProductForm({ ...newProductForm, average_lead_time_days: parseInt(e.target.value) || 1 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">Lead Time StdDev (Days)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={newProductForm.lead_time_stddev_days}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, lead_time_stddev_days: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
                 />
               </div>
@@ -454,6 +885,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <label className="block text-muted uppercase text-[10px] mb-1">Unit Cost ($)</label>
                 <input
                   type="number"
+                  step="0.01"
+                  min="0"
                   value={newProductForm.unit_cost}
                   onChange={(e) => setNewProductForm({ ...newProductForm, unit_cost: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
@@ -461,12 +894,36 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-muted uppercase text-[10px] mb-1">Target SLA (e.g. 0.95)</label>
+                <label className="block text-muted uppercase text-[10px] mb-1">Target Service Level</label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0.80"
+                  max="0.999"
                   value={newProductForm.target_service_level}
                   onChange={(e) => setNewProductForm({ ...newProductForm, target_service_level: parseFloat(e.target.value) || 0.95 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">MOQ (minimum_order_qty)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newProductForm.minimum_order_qty}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, minimum_order_qty: parseInt(e.target.value) || 1 })}
+                  className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted uppercase text-[10px] mb-1">Pack Size (pack_size)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newProductForm.pack_size}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, pack_size: parseInt(e.target.value) || 1 })}
                   className="w-full bg-stone border border-border rounded-xl px-3 py-2 text-ink focus:outline-none focus:border-accent"
                 />
               </div>
@@ -484,7 +941,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 type="submit"
                 className="px-5 py-2 bg-ink text-surface rounded-xl text-xs font-mono font-medium hover:bg-accent transition-colors cursor-pointer"
               >
-                Commit Product
+                Commit to products
               </button>
             </div>
           </form>

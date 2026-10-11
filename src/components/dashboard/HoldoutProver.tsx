@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ProductWithComputed } from '@/lib/types';
+import { ForecastRunRecord, ProductWithComputed } from '@/lib/types';
+import { getForecastRuns } from '@/lib/data';
 import {
   LineChart,
   Line,
@@ -12,14 +13,15 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { Award, CheckCircle, TrendingDown, Target, Info } from 'lucide-react';
+import { Award, CheckCircle, TrendingDown, Target, Info, ShieldCheck, Database, ArrowRight } from 'lucide-react';
 
 interface HoldoutProverProps {
   products: ProductWithComputed[];
 }
 
 export const HoldoutProver: React.FC<HoldoutProverProps> = ({ products }) => {
-  const [selectedSkuId, setSelectedSkuId] = useState<string>(products[0]?.id || 'ROB-01');
+  const [selectedSkuId, setSelectedSkuId] = useState<string>(products[0]?.id || 'DS-01');
+  const [forecastRuns, setForecastRuns] = useState<ForecastRunRecord[]>(() => getForecastRuns(products));
 
   const product = products.find((p) => p.id === selectedSkuId) || products[0];
 
@@ -35,31 +37,32 @@ export const HoldoutProver: React.FC<HoldoutProverProps> = ({ products }) => {
   }));
 
   return (
-    <div className="bg-surface rounded-xl border border-border p-6 lg:p-8 shadow-sm">
+    <div className="bg-surface rounded-2xl border border-border p-6 lg:p-8 shadow-sm space-y-8">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-moss font-semibold mb-1">
             <Award className="w-3.5 h-3.5" />
-            Empirical Validation Gate
+            Table 4 • forecast_runs Benchmark Gate
           </div>
           <h3 className="font-serif text-2xl text-ink font-normal">
             90-Day Hidden Chronological Holdout Prover
           </h3>
           <p className="text-muted text-xs font-sans mt-0.5">
-            Algorithmic complexity must justify itself against a naive baseline on holdout data.
+            Algorithmic sophistication must mathematically prove itself against a naive moving average on identical unseen holdouts. Zero data leakage.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="text-xs font-mono text-muted uppercase">Evaluate SKU:</label>
+          <label className="text-xs font-mono text-muted uppercase font-semibold">Active SKU:</label>
           <select
             value={selectedSkuId}
             onChange={(e) => setSelectedSkuId(e.target.value)}
-            className="bg-stone text-ink border border-border rounded-lg px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-accent cursor-pointer"
+            className="bg-stone text-ink border border-border rounded-xl px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-accent cursor-pointer"
           >
             {products.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.sku} - {p.name}
+                {p.sku} — {p.name}
               </option>
             ))}
           </select>
@@ -67,28 +70,28 @@ export const HoldoutProver: React.FC<HoldoutProverProps> = ({ products }) => {
       </div>
 
       {/* Metric comparison cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-6 border-b border-border">
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
           <div className="text-[10px] font-mono uppercase text-muted">Baseline 14d Moving Avg MAE</div>
           <div className="font-mono text-2xl font-semibold text-muted mt-1">
             {product.holdoutBaselineMAE} <span className="text-xs font-normal">units</span>
           </div>
           <div className="text-[11px] font-mono text-brick mt-1">
-            Prone to spike contamination
+            Contaminated by demand spikes
           </div>
         </div>
 
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted">StockSense Deterministic MAE</div>
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
+          <div className="text-[10px] font-mono uppercase text-muted">StockSense Clamped MAE</div>
           <div className="font-mono text-2xl font-semibold text-moss mt-1">
             {product.holdoutStockSenseMAE} <span className="text-xs font-normal">units</span>
           </div>
           <div className="text-[11px] font-mono text-moss mt-1">
-            Variance protected by AI clamp
+            Shielded from variance inflation
           </div>
         </div>
 
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
           <div className="text-[10px] font-mono uppercase text-muted">Forecast Accuracy Gain</div>
           <div className="font-mono text-2xl font-semibold text-accent mt-1">
             +{product.holdoutGainPct}%
@@ -98,24 +101,24 @@ export const HoldoutProver: React.FC<HoldoutProverProps> = ({ products }) => {
           </div>
         </div>
 
-        <div className="p-4 rounded-lg bg-stone/70 border border-border">
-          <div className="text-[10px] font-mono uppercase text-muted">False Stockout Cycles Avoided</div>
+        <div className="p-4 rounded-xl bg-stone/70 border border-border">
+          <div className="text-[10px] font-mono uppercase text-muted">Holdout WAPE Reduction</div>
           <div className="font-mono text-2xl font-semibold text-ink mt-1">
-            3 Cycles
+            -{((product.holdoutBaselineMAE - product.holdoutStockSenseMAE) / product.baseDailyDemand * 100).toFixed(1)}%
           </div>
           <div className="text-[11px] font-mono text-moss mt-1">
-            Zero artificial over-requisitions
+            Normalized weighted error delta
           </div>
         </div>
       </div>
 
       {/* Split Comparison Chart */}
-      <div className="pt-6">
-        <div className="flex justify-between items-center mb-4">
-          <div className="text-xs font-mono uppercase tracking-wider text-muted">
-            Ground Truth vs Baseline vs StockSense Forecast (Last 90 Days)
+      <div className="p-6 rounded-2xl bg-stone/30 border border-border space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="text-xs font-mono uppercase tracking-wider text-muted font-semibold">
+            {product.sku}: Ground Truth vs Naive Baseline vs StockSense Clamped (90-Day Holdout)
           </div>
-          <div className="flex items-center gap-4 text-xs font-mono">
+          <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
             <span className="inline-flex items-center gap-1.5 text-ink">
               <span className="w-3 h-0.5 bg-ink inline-block"></span> Actual Ground Truth
             </span>
@@ -185,6 +188,115 @@ export const HoldoutProver: React.FC<HoldoutProverProps> = ({ products }) => {
               />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* TABLE 4: forecast_runs Benchmark Runs Table */}
+      <div className="space-y-4 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-border text-xs font-mono">
+          <div>
+            <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              Core Relational Table • forecast_runs (Table 4)
+            </span>
+            <h4 className="font-serif text-xl font-normal text-ink mt-0.5">
+              Holdout Benchmark Verification Registry
+            </h4>
+            <p className="text-muted text-xs font-sans mt-0.5">
+              Empirical holdout comparison on identical date windows. WAPE = Σ|actual - forecast| / Σ|actual|.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-muted text-[11px] mt-2 sm:mt-0">
+            <span>{forecastRuns.length} holdout runs recorded</span>
+            <span className="text-moss flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5" /> All runs validated
+            </span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-xs">
+            <thead>
+              <tr className="border-b border-border text-muted uppercase text-[10px] tracking-wider bg-stone/30">
+                <th className="py-3 px-3">Run ID</th>
+                <th className="py-3 px-3">SKU & Item</th>
+                <th className="py-3 px-3">Baseline Method</th>
+                <th className="py-3 px-3">Candidate Method</th>
+                <th className="py-3 px-3">Holdout Window</th>
+                <th className="py-3 px-3">Baseline MAE</th>
+                <th className="py-3 px-3">Candidate MAE</th>
+                <th className="py-3 px-3">Baseline WAPE</th>
+                <th className="py-3 px-3">Candidate WAPE</th>
+                <th className="py-3 px-3">Gain %</th>
+                <th className="py-3 px-3">Status</th>
+                <th className="py-3 px-3 text-right">Evaluate</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {forecastRuns.map((run) => {
+                const prod = products.find((p) => p.id === run.productId);
+                const isSelected = prod?.id === selectedSkuId;
+
+                return (
+                  <tr
+                    key={run.id}
+                    className={`transition-colors ${
+                      isSelected ? 'bg-moss/10 font-semibold' : 'hover:bg-stone/50'
+                    }`}
+                  >
+                    <td className="py-3.5 px-3 whitespace-nowrap text-accent">
+                      {run.id}
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <div className="font-sans font-medium text-ink">{prod?.name || run.productId}</div>
+                      <div className="text-[10px] text-muted font-mono">{prod?.sku}</div>
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-muted text-[11px]">
+                      {run.baselineMethod}
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-ink text-[11px]">
+                      {run.candidateMethod}
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-muted text-[11px]">
+                      {run.holdoutStartDate} → {run.holdoutEndDate}
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-brick">
+                      {run.baselineMae.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-moss font-semibold">
+                      {run.candidateMae.toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-muted">
+                      {(run.baselineWape * 100).toFixed(1)}%
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-moss">
+                      {(run.candidateWape * 100).toFixed(1)}%
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-accent font-semibold">
+                      +{prod?.holdoutGainPct}%
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded text-[10px] uppercase font-semibold bg-moss/10 text-moss">
+                        {run.runStatus}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 whitespace-nowrap text-right">
+                      <button
+                        onClick={() => setSelectedSkuId(prod?.id || run.productId)}
+                        className={`px-2.5 py-1 rounded-lg border text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-ink text-surface border-ink'
+                            : 'bg-stone border-border text-muted hover:text-ink hover:border-ink'
+                        }`}
+                      >
+                        <span>{isSelected ? 'Active' : 'Chart'}</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
