@@ -19,7 +19,9 @@ class DataImport(Base):
     id = Column(String(36), primary_key=True)
     file_type = Column(String(32), nullable=False)  # "products", "demand", "suppliers"
     filename = Column(String(255), nullable=False)
-    status = Column(String(32), nullable=False, default="previewed")  # "previewed", "confirmed", "rejected", "failed"
+    status = Column(
+        String(32), nullable=False, default="previewed"
+    )  # "previewed", "confirmed", "rejected", "failed"
     total_rows = Column(Integer, nullable=False, default=0)
     accepted_rows = Column(Integer, nullable=False, default=0)
     rejected_rows = Column(Integer, nullable=False, default=0)

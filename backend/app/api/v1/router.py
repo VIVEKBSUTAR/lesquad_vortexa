@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.health import health_ready
+from app.api.v1.anomalies import router as anomalies_router
 from app.api.v1.imports import router as imports_router
 from app.api.v1.products import router as products_router
 from app.api.v1.recommendations import router as recommendations_router
@@ -14,6 +15,7 @@ api_router = APIRouter()
 api_router.include_router(products_router)
 api_router.include_router(imports_router)
 api_router.include_router(recommendations_router)
+api_router.include_router(anomalies_router)
 
 
 class ApiMetaResponse(BaseModel):
@@ -34,7 +36,7 @@ async def api_status() -> ApiMetaResponse:
         name=settings.PROJECT_NAME,
         version=settings.VERSION,
         status="active",
-        phase="Phase 1 - Backend Foundation (Phase 2 - CSV Import, Phase 3 - Explainable Replenishment Engine)",
+        phase="Phase 1 - Backend Foundation (Phase 2 - CSV Import, Phase 3 - Replenishment, Phase 4 - Demand Anomaly Review)",
     )
 
 

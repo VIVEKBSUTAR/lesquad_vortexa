@@ -66,7 +66,7 @@ class AnomalyReview(Base):
 
     # Relationships
     demand_record = relationship("DemandRecord", back_populates="anomaly_review")
-    product = relationship("Product")
+    product = relationship("Product", back_populates="anomaly_reviews")
 
     def __repr__(self) -> str:
         return (

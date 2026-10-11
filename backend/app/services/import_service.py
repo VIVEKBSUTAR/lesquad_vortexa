@@ -621,9 +621,15 @@ class ImportService:
                         "on_hand_qty": on_hand_val,
                         "committed_qty": committed_val,
                         "unit_cost": str(unit_cost_val) if unit_cost_val is not None else None,
-                        "ordering_cost": str(ordering_cost_val) if ordering_cost_val is not None else None,
-                        "holding_cost_rate": str(holding_rate_val) if holding_rate_val is not None else None,
-                        "holding_cost_per_unit_year": str(holding_cost_val) if holding_cost_val is not None else None,
+                        "ordering_cost": str(ordering_cost_val)
+                        if ordering_cost_val is not None
+                        else None,
+                        "holding_cost_rate": str(holding_rate_val)
+                        if holding_rate_val is not None
+                        else None,
+                        "holding_cost_per_unit_year": str(holding_cost_val)
+                        if holding_cost_val is not None
+                        else None,
                         "target_service_level": tsl_val,
                         "minimum_order_qty": moq_val,
                         "pack_size": pack_val,
@@ -761,7 +767,9 @@ class ImportService:
             )
 
         # Query existing products and existing demand in DB
-        db_products: Dict[str, int] = {sku: pid for (sku, pid) in db.query(Product.sku, Product.id).all()}
+        db_products: Dict[str, int] = {
+            sku: pid for (sku, pid) in db.query(Product.sku, Product.id).all()
+        }
         existing_demand_keys: Set[Tuple[str, str]] = {
             (sku, d.isoformat())
             for (sku, d) in db.query(Product.sku, DemandRecord.date)
@@ -1112,7 +1120,9 @@ class ImportService:
                 db=db,
             )
 
-        db_products: Dict[str, int] = {sku: pid for (sku, pid) in db.query(Product.sku, Product.id).all()}
+        db_products: Dict[str, int] = {
+            sku: pid for (sku, pid) in db.query(Product.sku, Product.id).all()
+        }
         seen_skus_in_file: Dict[str, int] = {}
         total_data_rows = 0
         rejected_rows_count = 0
@@ -1300,7 +1310,9 @@ class ImportService:
             status=status_val,
             total_rows=total_rows,
             accepted_rows=len(accepted_records) if can_confirm else 0,
-            rejected_rows=rejected_rows if rejected_rows > 0 else (total_rows if not can_confirm else 0),
+            rejected_rows=rejected_rows
+            if rejected_rows > 0
+            else (total_rows if not can_confirm else 0),
             warning_rows=len(warnings),
             can_confirm=can_confirm,
             staged_data=accepted_records if can_confirm else [],
@@ -1339,7 +1351,9 @@ class ImportService:
             can_confirm=can_confirm,
             total_rows=total_rows,
             accepted_rows=len(accepted_records) if can_confirm else 0,
-            rejected_rows=rejected_rows if rejected_rows > 0 else (total_rows if not can_confirm else 0),
+            rejected_rows=rejected_rows
+            if rejected_rows > 0
+            else (total_rows if not can_confirm else 0),
             warning_rows=len(warnings),
             preview_records=preview_sample,
             errors=errors,
@@ -1418,7 +1432,12 @@ class ImportService:
                 )
         elif import_record.file_type == "demand":
             staged_skus = list({r["sku"] for r in staged_rows})
-            db_products = {p.sku: p.id for p in db.query(Product.sku, Product.id).filter(Product.sku.in_(staged_skus)).all()}
+            db_products = {
+                p.sku: p.id
+                for p in db.query(Product.sku, Product.id)
+                .filter(Product.sku.in_(staged_skus))
+                .all()
+            }
             missing_skus = [s for s in staged_skus if s not in db_products]
             if missing_skus:
                 import_record.status = "failed"
@@ -1435,10 +1454,14 @@ class ImportService:
             for r in staged_rows:
                 p_id = db_products[r["sku"]]
                 d_date = date.fromisoformat(r["date"])
-                exists = db.query(DemandRecord.id).filter(
-                    DemandRecord.product_id == p_id,
-                    DemandRecord.date == d_date,
-                ).first()
+                exists = (
+                    db.query(DemandRecord.id)
+                    .filter(
+                        DemandRecord.product_id == p_id,
+                        DemandRecord.date == d_date,
+                    )
+                    .first()
+                )
                 if exists:
                     import_record.status = "failed"
                     db.commit()
@@ -1451,7 +1474,9 @@ class ImportService:
                     )
         elif import_record.file_type == "suppliers":
             staged_skus = list({r["sku"] for r in staged_rows})
-            db_products_map = {p.sku: p for p in db.query(Product).filter(Product.sku.in_(staged_skus)).all()}
+            db_products_map = {
+                p.sku: p for p in db.query(Product).filter(Product.sku.in_(staged_skus)).all()
+            }
             missing_skus = [s for s in staged_skus if s not in db_products_map]
             if missing_skus:
                 import_record.status = "failed"
@@ -1478,11 +1503,21 @@ class ImportService:
                         unit_of_measure=r.get("unit_of_measure", "piece"),
                         current_stock=r.get("on_hand_qty", 0),
                         committed_qty=r.get("committed_qty", 0),
-                        unit_cost=Decimal(str(r["unit_cost"])) if r.get("unit_cost") is not None else None,
-                        ordering_cost=Decimal(str(r["ordering_cost"])) if r.get("ordering_cost") is not None else None,
-                        holding_cost_rate=Decimal(str(r["holding_cost_rate"])) if r.get("holding_cost_rate") is not None else None,
-                        holding_cost_per_unit_year=Decimal(str(r["holding_cost_per_unit_year"])) if r.get("holding_cost_per_unit_year") is not None else None,
-                        target_service_level=r.get("target_service_level", settings.DEFAULT_SERVICE_LEVEL),
+                        unit_cost=Decimal(str(r["unit_cost"]))
+                        if r.get("unit_cost") is not None
+                        else None,
+                        ordering_cost=Decimal(str(r["ordering_cost"]))
+                        if r.get("ordering_cost") is not None
+                        else None,
+                        holding_cost_rate=Decimal(str(r["holding_cost_rate"]))
+                        if r.get("holding_cost_rate") is not None
+                        else None,
+                        holding_cost_per_unit_year=Decimal(str(r["holding_cost_per_unit_year"]))
+                        if r.get("holding_cost_per_unit_year") is not None
+                        else None,
+                        target_service_level=r.get(
+                            "target_service_level", settings.DEFAULT_SERVICE_LEVEL
+                        ),
                         minimum_order_qty=r.get("minimum_order_qty"),
                         pack_size=r.get("pack_size"),
                         lead_time_days=r.get("lead_time_days"),

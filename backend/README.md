@@ -279,16 +279,152 @@ Content-Type: application/json
 
 ---
 
-## 8. Running Tests & Migrations
+## 8. Phase 4 — Demand Anomaly Review and Classification
+
+StockSense includes a deterministic, explainable anomaly detection and review system that flags statistical outliers in historical demand series and guides human triage.
+
+> **Advisory & Triage Disclaimer**: Detected anomalies are statistical candidates flagged for human review. They are **not** proof of fraud, data corruption, system malfunction, or definitive causal relationships. Human confirmation is required before any operational classification is considered final.
+
+### 8.1 Detection Methodology & Statistical Mechanics
+
+1. **Robust Median / MAD Estimator**:
+   - Standard sample mean and standard deviation are severely distorted by the very outliers they seek to detect. StockSense employs the **Median Absolute Deviation (MAD)** about the median ($M$):
+     $$M = \text{median}(Y)$$
+     $$\text{MAD} = \text{median}(|Y - M|)$$
+   - The normal-consistent standard deviation estimator is:
+     $$\hat{\sigma}_{\text{MAD}} = 1.4826022 \times \text{MAD}$$
+   - The modified Z-score distance for observation $y_i$ is $z_i = \frac{|y_i - M|}{\hat{\sigma}_{\text{MAD}}}$.
+   - Default outlier threshold: $k = 3.0$ (modified Z-score cutoff).
+     $$\text{Upper Threshold} = M + k \times \hat{\sigma}_{\text{MAD}}$$
+     $$\text{Lower Threshold} = \max(0.0, M - k \times \hat{\sigma}_{\text{MAD}})$$
+
+2. **Zero MAD & Intermittent Demand Handling**:
+   - **Constant Demand**: When all observations are identical ($\min(Y) = \max(Y)$), variance is recognized as 0. Bounds collapse to $[M, M]$, and 0 false positives are flagged.
+   - **Sparse / Skewed Demand**: When $>50\%$ of observations match the median (common in intermittent or slow-moving items where median demand is 0), MAD is 0 despite non-zero variations. In this scenario, the detector falls back to the **Mean Absolute Deviation (MeanAD)**:
+     $$\text{MeanAD} = \frac{1}{N} \sum_{i=1}^N |y_i - M|$$
+     $$\hat{\sigma} = 1.253314 \times \text{MeanAD}$$
+     This prevents division-by-zero errors while maintaining robust statistical thresholds.
+
+3. **Missing Calendar Dates**:
+   - Missing calendar days are **never** converted into synthetic zero-demand observations. Statistical baselines are evaluated strictly across the recorded demand observations.
+
+4. **Insufficient Demand History**:
+   - If a product has fewer than `min_history_records` (default: 5 observations), statistical anomaly detection is rejected with HTTP 400 Bad Request to prevent spurious outlier claims on unrepresentative sample sizes.
+
+### 8.2 Anomaly Types & Classification Policy
+
+| Anomaly Type | Condition | Suggested Classification | Explanation / Context |
+|---|---|---|---|
+| `promotion_spike` | $y_i > \text{Upper Threshold}$ with `promotion_flag = True` | `promotion` | Demand surge coincides with an active promotional event. |
+| `high_demand_spike` | $y_i > \text{Upper Threshold}$ with `promotion_flag = False` | `unknown` | Unusually high demand spike with no promotional record. |
+| `low_demand_drop` | $y_i < \text{Lower Threshold}$ with `stockout_flag = False` | `unknown` | Demand dropped significantly below historical baseline. |
+| `stockout_affected` | $y_i < \text{Lower Threshold}$ or $y_i = 0$ with `stockout_flag = True` | `unknown` | Demand may be censored due to product stockout / unavailability. |
+| `potential_data_error` | $y_i < 0$ or non-finite / implausible value | `data_error` | Direct data-quality violation establishing potential entry error. |
+| `unknown_anomaly` | Unusual pattern without clear attribution | `unknown` | Observation flagged for human review. |
+
+#### Human-Confirmed Classifications
+A human reviewer confirms one of three final classifications:
+- `promotion`: Verified promotion, seasonal campaign, or planned marketing lift.
+- `data_error`: Verified data-entry error, barcode glitch, or invalid record.
+- `unknown`: Legitimate random surge or unverified variance.
+
+### 8.3 Idempotency & Data Preservation Guarantees
+
+- **Source Data Immutability**: Historical demand records in `demand_records` (`quantity`, `date`, `promotion_flag`, `stockout_flag`) are **never mutated, overwritten, or deleted** by the anomaly service.
+- **Separate Decision Storage**: All review classifications, notes, treatments (`keep`, `exclude`, `clamp`), and optional adjusted quantities are stored strictly in `anomaly_reviews`.
+- **Rerun Idempotency**: Running detection multiple times on a product does not duplicate candidates. Existing candidates are preserved via the database unique constraint on `demand_record_id`.
+- **Preservation of User Decisions**: If a candidate has already been reviewed (`review_status = 'reviewed'` or `'dismissed'`), subsequent detection runs refresh only the statistical detector scores and bounds without overwriting the human reviewer's classification, review status, or notes.
+- **Replenishment Engine Protection**: The replenishment calculation engine reads immutable source demand observations. Classifying an observation as `data_error` does not silently distort replenishment calculations.
+
+### 8.4 API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/products/{product_id}/anomalies/detect` | Runs statistical anomaly detector and persists candidates idempotently. |
+| `GET` | `/api/v1/products/{product_id}/anomalies` | Lists anomaly candidates for a product with pagination and filters. |
+| `GET` | `/api/v1/products/{product_id}/anomalies/summary` | Returns counts by status (`pending`, `reviewed`, `dismissed`) and classification. |
+| `GET` | `/api/v1/anomalies` | Global list of anomaly reviews across all products with filtering. |
+| `GET` | `/api/v1/anomalies/summary` | Global anomaly summary counts across the entire catalog. |
+| `GET` | `/api/v1/anomalies/{anomaly_id}` | Retrieves full review details, baseline statistics, and detector evidence. |
+| `PATCH` | `/api/v1/anomalies/{anomaly_id}/review` | Confirms classification, adds review notes, treatment, or adjusted quantity. |
+| `POST` | `/api/v1/anomalies/{anomaly_id}/reviews` | Spec-compliant alias for submitting review decisions. |
+| `POST` | `/api/v1/anomalies/{anomaly_id}/dismiss` | Dismisses a candidate as a false positive or acceptable variance. |
+
+#### Example: Run Detection
+```http
+POST /api/v1/products/1/anomalies/detect HTTP/1.1
+Content-Type: application/json
+
+{
+  "threshold_multiplier": 3.0,
+  "min_history_records": 5
+}
+```
+
+#### Example Response (200 OK)
+```json
+{
+  "product_id": 1,
+  "sku": "SKU-001",
+  "total_records_analyzed": 30,
+  "detector_version": "median_mad_v1.0",
+  "detected_anomalies_count": 1,
+  "new_candidates_created": 1,
+  "existing_candidates_preserved": 0,
+  "candidates": [
+    {
+      "id": 1,
+      "demand_record_id": 15,
+      "product_id": 1,
+      "sku": "SKU-001",
+      "observation_date": "2026-01-15",
+      "original_quantity": 120.0,
+      "adjusted_quantity": null,
+      "detector_version": "median_mad_v1.0",
+      "anomaly_type": "promotion_spike",
+      "anomaly_score": 5.42,
+      "detector_explanation": "Observed demand of 120.0 significantly exceeds upper expected threshold (52.3, score=5.42) and coincided with an active promotion flag.",
+      "suggested_classification": "promotion",
+      "user_confirmed_classification": null,
+      "review_status": "pending",
+      "reviewer_notes": null,
+      "stockout_flag": false,
+      "promotion_flag": true,
+      "reviewed_at": "2026-10-11T15:00:00Z",
+      "created_at": "2026-10-11T15:00:00Z"
+    }
+  ],
+  "notes": []
+}
+```
+
+#### Example: Confirm Review
+```http
+PATCH /api/v1/anomalies/1/review HTTP/1.1
+Content-Type: application/json
+
+{
+  "classification": "promotion",
+  "review_status": "reviewed",
+  "reviewer_notes": "Confirmed holiday marketing campaign spike.",
+  "reviewer": "InventoryAnalyst1",
+  "user_treatment": "keep"
+}
+```
+
+---
+
+## 9. Running Tests & Migrations
 
 ```powershell
-# Run all 82 tests
+# Run all 105 automated unit and integration tests
 .\.venv\Scripts\pytest -v
 
-# Run Ruff linter and formatter
+# Run Ruff linter and formatter check
 .\.venv\Scripts\ruff check app tests
 .\.venv\Scripts\ruff format --check app tests
 
 # Run Alembic migrations
 .\.venv\Scripts\alembic upgrade head
 ```
+

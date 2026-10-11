@@ -81,12 +81,17 @@ class Product(Base):
         CheckConstraint(
             "minimum_order_qty IS NULL OR minimum_order_qty >= 1", name="ck_products_moq_positive"
         ),
-        CheckConstraint("pack_size IS NULL OR pack_size >= 1", name="ck_products_pack_size_positive"),
+        CheckConstraint(
+            "pack_size IS NULL OR pack_size >= 1", name="ck_products_pack_size_positive"
+        ),
     )
 
     # Relationships
     demand_records = relationship(
         "DemandRecord", back_populates="product", cascade="all, delete-orphan"
+    )
+    anomaly_reviews = relationship(
+        "AnomalyReview", back_populates="product", cascade="all, delete-orphan"
     )
     forecast_runs = relationship(
         "ForecastRun", back_populates="product", cascade="all, delete-orphan"

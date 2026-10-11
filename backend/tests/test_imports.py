@@ -45,7 +45,9 @@ def test_valid_product_csv_preview(client: TestClient, db_session: Session):
 def test_valid_daily_demand_csv_preview(client: TestClient, db_session: Session):
     """Test 2: Valid daily demand CSV preview succeeds when products exist in database."""
     # Create product first
-    prod = Product(sku="TEST-DEM-1", name="Demand Test Product", unit_of_measure="piece", current_stock=50)
+    prod = Product(
+        sku="TEST-DEM-1", name="Demand Test Product", unit_of_measure="piece", current_stock=50
+    )
     db_session.add(prod)
     db_session.commit()
 
@@ -78,10 +80,7 @@ def test_valid_daily_demand_csv_preview(client: TestClient, db_session: Session)
 def test_missing_required_columns(client: TestClient):
     """Test 3: Missing required columns generates blocking header diagnostics and cannot confirm."""
     # Missing on_hand_qty
-    csv_missing_col = (
-        "sku,product_name,unit_of_measure\n"
-        "TEST-BAD,Bad Product,piece\n"
-    )
+    csv_missing_col = "sku,product_name,unit_of_measure\nTEST-BAD,Bad Product,piece\n"
 
     response = client.post(
         "/api/v1/imports/products/preview",
@@ -91,12 +90,17 @@ def test_missing_required_columns(client: TestClient):
     assert response.status_code == 200
     data = response.json()
     assert data["can_confirm"] is False
-    assert any(e["error_code"] == "MISSING_REQUIRED_COLUMN" and e["column_name"] == "on_hand_qty" for e in data["errors"])
+    assert any(
+        e["error_code"] == "MISSING_REQUIRED_COLUMN" and e["column_name"] == "on_hand_qty"
+        for e in data["errors"]
+    )
 
 
 def test_invalid_numeric_values_and_dates(client: TestClient, db_session: Session):
     """Test 4: Invalid numeric values and malformed dates are flagged with clear diagnostics."""
-    prod = Product(sku="TEST-NUM-1", name="Product for Date Test", unit_of_measure="piece", current_stock=20)
+    prod = Product(
+        sku="TEST-NUM-1", name="Product for Date Test", unit_of_measure="piece", current_stock=20
+    )
     db_session.add(prod)
     db_session.commit()
 
@@ -117,10 +121,7 @@ def test_invalid_numeric_values_and_dates(client: TestClient, db_session: Sessio
     assert "INVALID_SERVICE_LEVEL" in error_codes
 
     # Demand with invalid date (non-ISO and impossible date)
-    bad_demand_csv = (
-        "sku,date,units_sold\n"
-        "TEST-NUM-1,2026-02-31,10\n"
-    )
+    bad_demand_csv = "sku,date,units_sold\nTEST-NUM-1,2026-02-31,10\n"
     res_d = client.post(
         "/api/v1/imports/demand/preview",
         files={"file": ("demand.csv", bad_demand_csv.encode("utf-8"), "text/csv")},
@@ -133,14 +134,18 @@ def test_invalid_numeric_values_and_dates(client: TestClient, db_session: Sessio
 
 def test_negative_quantities_rejected(client: TestClient, db_session: Session):
     """Test 5: Negative quantities in on_hand_qty or units_sold are rejected."""
-    prod = Product(sku="TEST-NEG-1", name="Product for Negative Test", unit_of_measure="piece", current_stock=10)
+    prod = Product(
+        sku="TEST-NEG-1",
+        name="Product for Negative Test",
+        unit_of_measure="piece",
+        current_stock=10,
+    )
     db_session.add(prod)
     db_session.commit()
 
     # Negative product stock
     neg_prod_csv = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "NEG-P,Negative Product,piece,-15\n"
+        "sku,product_name,unit_of_measure,on_hand_qty\nNEG-P,Negative Product,piece,-15\n"
     )
     res_p = client.post(
         "/api/v1/imports/products/preview",
@@ -151,10 +156,7 @@ def test_negative_quantities_rejected(client: TestClient, db_session: Session):
     assert any(e["error_code"] == "INVALID_NON_NEGATIVE_NUMBER" for e in res_p.json()["errors"])
 
     # Negative demand quantity
-    neg_demand_csv = (
-        "sku,date,units_sold\n"
-        "TEST-NEG-1,2026-09-01,-8\n"
-    )
+    neg_demand_csv = "sku,date,units_sold\nTEST-NEG-1,2026-09-01,-8\n"
     res_d = client.post(
         "/api/v1/imports/demand/preview",
         files={"file": ("demand.csv", neg_demand_csv.encode("utf-8"), "text/csv")},
@@ -166,7 +168,9 @@ def test_negative_quantities_rejected(client: TestClient, db_session: Session):
 
 def test_duplicate_skus_and_duplicate_sku_date_pairs(client: TestClient, db_session: Session):
     """Test 6: Duplicate SKUs within file and duplicate SKU/date pairs are detected and blocked."""
-    prod = Product(sku="TEST-DUP-SKU", name="Product for Dup Test", unit_of_measure="piece", current_stock=10)
+    prod = Product(
+        sku="TEST-DUP-SKU", name="Product for Dup Test", unit_of_measure="piece", current_stock=10
+    )
     db_session.add(prod)
     db_session.commit()
 
@@ -185,11 +189,7 @@ def test_duplicate_skus_and_duplicate_sku_date_pairs(client: TestClient, db_sess
     assert any(e["error_code"] == "DUPLICATE_SKU_IN_FILE" for e in res_p.json()["errors"])
 
     # Duplicate (sku, date) within demand file
-    dup_demand_csv = (
-        "sku,date,units_sold\n"
-        "TEST-DUP-SKU,2026-09-05,10\n"
-        "TEST-DUP-SKU,2026-09-05,25\n"
-    )
+    dup_demand_csv = "sku,date,units_sold\nTEST-DUP-SKU,2026-09-05,10\nTEST-DUP-SKU,2026-09-05,25\n"
     res_d = client.post(
         "/api/v1/imports/demand/preview",
         files={"file": ("demand.csv", dup_demand_csv.encode("utf-8"), "text/csv")},
@@ -201,10 +201,7 @@ def test_duplicate_skus_and_duplicate_sku_date_pairs(client: TestClient, db_sess
 
 def test_unknown_skus_in_demand_data(client: TestClient):
     """Test 7: Demand records referring to unknown SKUs are blocked without placeholder creation."""
-    unknown_demand_csv = (
-        "sku,date,units_sold\n"
-        "UNKNOWN-SKU-999,2026-09-01,10\n"
-    )
+    unknown_demand_csv = "sku,date,units_sold\nUNKNOWN-SKU-999,2026-09-01,10\n"
     res = client.post(
         "/api/v1/imports/demand/preview",
         files={"file": ("demand.csv", unknown_demand_csv.encode("utf-8"), "text/csv")},
@@ -217,13 +214,14 @@ def test_unknown_skus_in_demand_data(client: TestClient):
 
 def test_explicit_zero_demand_preservation(client: TestClient, db_session: Session):
     """Test 8: Explicit zero demand is preserved as zero, distinct from missing dates."""
-    prod = Product(sku="TEST-ZERO-1", name="Product for Zero Test", unit_of_measure="piece", current_stock=30)
+    prod = Product(
+        sku="TEST-ZERO-1", name="Product for Zero Test", unit_of_measure="piece", current_stock=30
+    )
     db_session.add(prod)
     db_session.commit()
 
     csv_content = (
-        "sku,date,units_sold,stockout_flag,promotion_flag\n"
-        "TEST-ZERO-1,2026-09-01,0,false,false\n"
+        "sku,date,units_sold,stockout_flag,promotion_flag\nTEST-ZERO-1,2026-09-01,0,false,false\n"
     )
     preview_res = client.post(
         "/api/v1/imports/demand/preview",
@@ -245,7 +243,12 @@ def test_explicit_zero_demand_preservation(client: TestClient, db_session: Sessi
 
 def test_stockout_and_promotion_flag_parsing(client: TestClient, db_session: Session):
     """Test 9: Boolean flags parse various true/false representations and reject ambiguous values."""
-    prod = Product(sku="TEST-BOOL-1", name="Product for Boolean Test", unit_of_measure="piece", current_stock=30)
+    prod = Product(
+        sku="TEST-BOOL-1",
+        name="Product for Boolean Test",
+        unit_of_measure="piece",
+        current_stock=30,
+    )
     db_session.add(prod)
     db_session.commit()
 
@@ -271,10 +274,7 @@ def test_stockout_and_promotion_flag_parsing(client: TestClient, db_session: Ses
     assert records[2]["promotion_flag"] is False
 
     # Invalid boolean string
-    invalid_csv = (
-        "sku,date,units_sold,stockout_flag\n"
-        "TEST-BOOL-1,2026-09-04,10,maybe\n"
-    )
+    invalid_csv = "sku,date,units_sold,stockout_flag\nTEST-BOOL-1,2026-09-04,10,maybe\n"
     res_inv = client.post(
         "/api/v1/imports/demand/preview",
         files={"file": ("demand.csv", invalid_csv.encode("utf-8"), "text/csv")},
@@ -287,8 +287,7 @@ def test_stockout_and_promotion_flag_parsing(client: TestClient, db_session: Ses
 def test_optional_values_remaining_null(client: TestClient, db_session: Session):
     """Test 10: Optional values not provided remain NULL/None instead of fabricating facts."""
     csv_content = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "TEST-NULL-1,Null Test Product,piece,50\n"
+        "sku,product_name,unit_of_measure,on_hand_qty\nTEST-NULL-1,Null Test Product,piece,50\n"
     )
     preview_res = client.post(
         "/api/v1/imports/products/preview",
@@ -350,18 +349,18 @@ def test_rejected_or_failed_import_cannot_be_confirmed(client: TestClient):
     assert conf_res.json()["error"]["code"] == "CANNOT_CONFIRM_IMPORT"
 
 
-def test_missing_demand_dates_are_not_converted_to_zero_records(client: TestClient, db_session: Session):
+def test_missing_demand_dates_are_not_converted_to_zero_records(
+    client: TestClient, db_session: Session
+):
     """Test that missing dates between observations are never synthesized into zero demand."""
-    prod = Product(sku="TEST-SPARSE-1", name="Sparse Demand Product", unit_of_measure="piece", current_stock=40)
+    prod = Product(
+        sku="TEST-SPARSE-1", name="Sparse Demand Product", unit_of_measure="piece", current_stock=40
+    )
     db_session.add(prod)
     db_session.commit()
 
     # CSV has demand on Day 1 and Day 5, skipping Days 2, 3, 4
-    csv_content = (
-        "sku,date,units_sold\n"
-        "TEST-SPARSE-1,2026-09-01,10\n"
-        "TEST-SPARSE-1,2026-09-05,20\n"
-    )
+    csv_content = "sku,date,units_sold\nTEST-SPARSE-1,2026-09-01,10\nTEST-SPARSE-1,2026-09-05,20\n"
     res = client.post(
         "/api/v1/imports/demand/preview",
         files={"file": ("demand.csv", csv_content.encode("utf-8"), "text/csv")},
@@ -375,7 +374,12 @@ def test_missing_demand_dates_are_not_converted_to_zero_records(client: TestClie
     assert conf.status_code == 200
 
     # Exactly 2 demand records must exist in DB; non-reported dates are NOT zero records
-    records = db_session.query(DemandRecord).filter(DemandRecord.product_id == prod.id).order_by(DemandRecord.date).all()
+    records = (
+        db_session.query(DemandRecord)
+        .filter(DemandRecord.product_id == prod.id)
+        .order_by(DemandRecord.date)
+        .all()
+    )
     assert len(records) == 2
     assert [r.date.isoformat() for r in records] == ["2026-09-01", "2026-09-05"]
     assert [r.quantity for r in records] == [10.0, 20.0]
@@ -387,8 +391,7 @@ def test_preview_does_not_write_business_records(client: TestClient, db_session:
     demand_count_before = db_session.query(DemandRecord).count()
 
     csv_content = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "PREVIEW-ONLY-1,Preview Only,piece,100\n"
+        "sku,product_name,unit_of_measure,on_hand_qty\nPREVIEW-ONLY-1,Preview Only,piece,100\n"
     )
     res = client.post(
         "/api/v1/imports/products/preview",
@@ -434,8 +437,7 @@ def test_successful_confirmation_and_persistence(client: TestClient, db_session:
 def test_confirmation_retry_idempotent(client: TestClient, db_session: Session):
     """Test 13: Confirmation retry does not insert duplicate records and returns confirmed summary."""
     csv_content = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "RETRY-SKU-1,Retry Test Product,piece,40\n"
+        "sku,product_name,unit_of_measure,on_hand_qty\nRETRY-SKU-1,Retry Test Product,piece,40\n"
     )
     preview_res = client.post(
         "/api/v1/imports/products/preview",
@@ -459,11 +461,12 @@ def test_confirmation_retry_idempotent(client: TestClient, db_session: Session):
     assert count_after_second == 1
 
 
-def test_revalidation_failure_when_data_changes_after_preview(client: TestClient, db_session: Session):
+def test_revalidation_failure_when_data_changes_after_preview(
+    client: TestClient, db_session: Session
+):
     """Test 14: Confirmation revalidates against current database state and fails if conflict emerged."""
     csv_content = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "REVAL-SKU-1,Reval Product,piece,50\n"
+        "sku,product_name,unit_of_measure,on_hand_qty\nREVAL-SKU-1,Reval Product,piece,50\n"
     )
     preview_res = client.post(
         "/api/v1/imports/products/preview",
@@ -473,7 +476,9 @@ def test_revalidation_failure_when_data_changes_after_preview(client: TestClient
     import_id = preview_res.json()["import_id"]
 
     # Before confirming, inject product with REVAL-SKU-1 into database directly
-    interfering_product = Product(sku="REVAL-SKU-1", name="Interfering Product", unit_of_measure="piece", current_stock=10)
+    interfering_product = Product(
+        sku="REVAL-SKU-1", name="Interfering Product", unit_of_measure="piece", current_stock=10
+    )
     db_session.add(interfering_product)
     db_session.commit()
 
@@ -492,8 +497,7 @@ def test_revalidation_failure_when_data_changes_after_preview(client: TestClient
 def test_transaction_rollback_on_failed_import(client: TestClient, db_session: Session):
     """Test 15: Database failure during confirmation triggers complete transaction rollback."""
     csv_content = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "ROLLBACK-SKU-1,Rollback Product,piece,60\n"
+        "sku,product_name,unit_of_measure,on_hand_qty\nROLLBACK-SKU-1,Rollback Product,piece,60\n"
     )
     preview_res = client.post(
         "/api/v1/imports/products/preview",
@@ -502,7 +506,9 @@ def test_transaction_rollback_on_failed_import(client: TestClient, db_session: S
     import_id = preview_res.json()["import_id"]
 
     # Mock db.add to simulate a database failure mid-import
-    with patch.object(Session, "add", side_effect=RuntimeError("Simulated mid-transaction failure")):
+    with patch.object(
+        Session, "add", side_effect=RuntimeError("Simulated mid-transaction failure")
+    ):
         confirm_res = client.post(f"/api/v1/imports/{import_id}/confirm")
         assert confirm_res.status_code == 500
 
@@ -559,10 +565,7 @@ def test_malformed_csv_input_and_empty_files(client: TestClient):
     assert res_ext.json()["error"]["code"] == "INVALID_FILE_EXTENSION"
 
     # Mismatched column count
-    malformed_csv = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "M1,Mismatched Row\n"
-    )
+    malformed_csv = "sku,product_name,unit_of_measure,on_hand_qty\nM1,Mismatched Row\n"
     res_mal = client.post(
         "/api/v1/imports/products/preview",
         files={"file": ("malformed.csv", malformed_csv.encode("utf-8"), "text/csv")},
@@ -580,14 +583,13 @@ def test_existing_demo_data_remains_intact(client: TestClient, db_session: Sessi
     demo1 = db_session.query(Product).filter(Product.sku == "SKU-001").first()
     assert demo1 is not None
     assert demo1.current_stock == 80
-    demo1_demands = db_session.query(DemandRecord).filter(DemandRecord.product_id == demo1.id).count()
+    demo1_demands = (
+        db_session.query(DemandRecord).filter(DemandRecord.product_id == demo1.id).count()
+    )
     assert demo1_demands == 7
 
     # Import new product
-    new_csv = (
-        "sku,product_name,unit_of_measure,on_hand_qty\n"
-        "NON-DEMO-99,Non Demo Item,piece,35\n"
-    )
+    new_csv = "sku,product_name,unit_of_measure,on_hand_qty\nNON-DEMO-99,Non Demo Item,piece,35\n"
     prev = client.post(
         "/api/v1/imports/products/preview",
         files={"file": ("products.csv", new_csv.encode("utf-8"), "text/csv")},
@@ -597,20 +599,21 @@ def test_existing_demo_data_remains_intact(client: TestClient, db_session: Sessi
     # Verify demo product is completely unchanged
     demo1_after = db_session.query(Product).filter(Product.sku == "SKU-001").first()
     assert demo1_after.current_stock == 80
-    demo1_demands_after = db_session.query(DemandRecord).filter(DemandRecord.product_id == demo1_after.id).count()
+    demo1_demands_after = (
+        db_session.query(DemandRecord).filter(DemandRecord.product_id == demo1_after.id).count()
+    )
     assert demo1_demands_after == 7
 
 
 def test_generic_import_endpoint_and_suppliers(client: TestClient, db_session: Session):
     """Test generic /imports/preview and supplier settings workflow."""
-    prod = Product(sku="SUPP-SKU-1", name="Supplier Test Product", unit_of_measure="piece", current_stock=20)
+    prod = Product(
+        sku="SUPP-SKU-1", name="Supplier Test Product", unit_of_measure="piece", current_stock=20
+    )
     db_session.add(prod)
     db_session.commit()
 
-    csv_content = (
-        "sku,average_lead_time_days,lead_time_stddev_days\n"
-        "SUPP-SKU-1,6,1.5\n"
-    )
+    csv_content = "sku,average_lead_time_days,lead_time_stddev_days\nSUPP-SKU-1,6,1.5\n"
     # Using generic preview with query parameter
     res = client.post(
         "/api/v1/imports/preview?file_type=suppliers",
@@ -706,10 +709,7 @@ def test_postgres_import_pipeline_live():
             assert dem_records[1]["stockout_flag"] is True
 
             # 6. Import supplier settings to update lead time on live PostgreSQL
-            csv_supp = (
-                f"sku,average_lead_time_days\n"
-                f"{unique_sku},7\n"
-            )
+            csv_supp = f"sku,average_lead_time_days\n{unique_sku},7\n"
             prev_supp = live_client.post(
                 "/api/v1/imports/suppliers/preview",
                 files={"file": ("pg_suppliers.csv", csv_supp.encode("utf-8"), "text/csv")},
@@ -717,7 +717,9 @@ def test_postgres_import_pipeline_live():
             assert prev_supp.status_code == 200
             supp_data = prev_supp.json()
             assert supp_data["can_confirm"] is True
-            assert any(w["error_code"] == "DEFAULT_LEAD_TIME_STDDEV_APPLIED" for w in supp_data["warnings"])
+            assert any(
+                w["error_code"] == "DEFAULT_LEAD_TIME_STDDEV_APPLIED" for w in supp_data["warnings"]
+            )
             supp_import_id = supp_data["import_id"]
 
             conf_supp = live_client.post(f"/api/v1/imports/{supp_import_id}/confirm")
@@ -730,11 +732,17 @@ def test_postgres_import_pipeline_live():
 
         finally:
             # 7. Clean up test data from live PostgreSQL container to preserve clean demo state
-            import_ids_to_clean = [i for i in [prod_import_id, dem_import_id, supp_import_id] if i is not None]
+            import_ids_to_clean = [
+                i for i in [prod_import_id, dem_import_id, supp_import_id] if i is not None
+            ]
             with Session(engine) as cleanup_session:
-                live_prod = cleanup_session.query(Product).filter(Product.sku.like("PG-LIVE-%")).first()
+                live_prod = (
+                    cleanup_session.query(Product).filter(Product.sku.like("PG-LIVE-%")).first()
+                )
                 if live_prod:
-                    cleanup_session.query(DemandRecord).filter(DemandRecord.product_id == live_prod.id).delete()
+                    cleanup_session.query(DemandRecord).filter(
+                        DemandRecord.product_id == live_prod.id
+                    ).delete()
                     cleanup_session.delete(live_prod)
                 if import_ids_to_clean:
                     cleanup_session.query(DataImport).filter(
