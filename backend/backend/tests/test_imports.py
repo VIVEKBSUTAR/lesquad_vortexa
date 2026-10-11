@@ -586,7 +586,7 @@ def test_existing_demo_data_remains_intact(client: TestClient, db_session: Sessi
     demo1_demands = (
         db_session.query(DemandRecord).filter(DemandRecord.product_id == demo1.id).count()
     )
-    assert demo1_demands == 7
+    assert demo1_demands == 45
 
     # Import new product
     new_csv = "sku,product_name,unit_of_measure,on_hand_qty\nNON-DEMO-99,Non Demo Item,piece,35\n"
@@ -602,7 +602,7 @@ def test_existing_demo_data_remains_intact(client: TestClient, db_session: Sessi
     demo1_demands_after = (
         db_session.query(DemandRecord).filter(DemandRecord.product_id == demo1_after.id).count()
     )
-    assert demo1_demands_after == 7
+    assert demo1_demands_after == 45
 
 
 def test_generic_import_endpoint_and_suppliers(client: TestClient, db_session: Session):

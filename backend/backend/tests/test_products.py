@@ -101,12 +101,12 @@ def test_get_demand_for_unknown_product_returns_404(client: TestClient):
 def test_seed_demo_data_execution(db_session: Session):
     """Verify deterministic demo data seeder correctly populates entities idempotently."""
     res = seed_demo_data(db_session)
-    assert res["products"] == 2
-    assert res["demand_records"] == 14
+    assert res["products"] == 9
+    assert res["demand_records"] == 405
 
     # Verify products exist
     prods = db_session.query(Product).order_by(Product.sku.asc()).all()
-    assert len(prods) == 2
+    assert len(prods) == 9
     assert prods[0].sku == "SKU-001"
     assert prods[1].sku == "SKU-002"
 
