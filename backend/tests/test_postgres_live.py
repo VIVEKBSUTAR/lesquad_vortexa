@@ -78,3 +78,38 @@ def test_postgres_http_retrieval_demo_data(postgres_live_check):
         promos = [d for d in demands if d["promotion_flag"] is True]
         assert len(promos) >= 1
         assert promos[0]["quantity"] == 48.0
+
+
+def test_postgres_replenishment_calculation_live(postgres_live_check):
+    """
+    Verify Phase 3:
+    Replenishment recommendation calculation, snapshot persistence, and retrieval
+    against live PostgreSQL container database.
+    """
+    with TestClient(app) as client:
+        # 1. Retrieve SKU-001
+        prods_res = client.get("/api/v1/products")
+        assert prods_res.status_code == 200
+        prods = prods_res.json()
+        p1 = next(p for p in prods if p["sku"] == "SKU-001")
+
+        # 2. Calculate and persist recommendation
+        calc_res = client.post(f"/api/v1/products/{p1['id']}/recommendations/calculate")
+        assert calc_res.status_code == 200
+        rec = calc_res.json()
+        assert rec["product_id"] == p1["id"]
+        assert rec["reorder_point"] > 0
+        assert rec["safety_stock"] > 0
+        assert rec["formula_version"] == "v1.0"
+        assert rec["input_snapshot"]["sku"] == "SKU-001"
+        assert rec["assumptions"]["demand_model"]["mean_daily_demand"] > 0
+
+        # 3. Retrieve latest recommendation
+        latest_res = client.get(f"/api/v1/products/{p1['id']}/recommendations/latest")
+        assert latest_res.status_code == 200
+        assert latest_res.json()["id"] == rec["id"]
+
+        # 4. Retrieve recommendations overview
+        overview_res = client.get("/api/v1/recommendations?latest_only=true")
+        assert overview_res.status_code == 200
+        assert any(item["id"] == rec["id"] for item in overview_res.json()["items"])

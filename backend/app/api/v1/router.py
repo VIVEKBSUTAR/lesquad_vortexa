@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.health import health_ready
 from app.api.v1.imports import router as imports_router
 from app.api.v1.products import router as products_router
+from app.api.v1.recommendations import router as recommendations_router
 from app.core.config import settings
 from app.db.session import get_db
 from app.schemas.common import HealthReadyResponse
@@ -12,6 +13,7 @@ from app.schemas.common import HealthReadyResponse
 api_router = APIRouter()
 api_router.include_router(products_router)
 api_router.include_router(imports_router)
+api_router.include_router(recommendations_router)
 
 
 class ApiMetaResponse(BaseModel):
@@ -32,7 +34,7 @@ async def api_status() -> ApiMetaResponse:
         name=settings.PROJECT_NAME,
         version=settings.VERSION,
         status="active",
-        phase="Phase 1 - Backend Foundation (Phase 2 - CSV Import and Validation Pipeline)",
+        phase="Phase 1 - Backend Foundation (Phase 2 - CSV Import, Phase 3 - Explainable Replenishment Engine)",
     )
 
 
