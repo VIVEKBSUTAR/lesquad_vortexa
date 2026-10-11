@@ -1,0 +1,41 @@
+# Root .gitignore for StockSense monorepo
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js & Frontend builds
+stocksense/.next/
+stocksense/out/
+stocksense/build/
+dist/
+coverage/
+
+# Misc & OS
+.DS_Store
+Thumbs.db
+*.pem
+*.log
+.codelens/
+
+# Environment files
+.env
+.env.*
+!.env.example
+*.local
+
+# Python / Backend
+backend/backend/.venv/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3

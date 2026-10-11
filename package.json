@@ -1,0 +1,13 @@
+{
+  "name": "stocksense-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "StockSense - Unified End-to-End Inventory Replenishment & Demand Intelligence Workspace",
+  "scripts": {
+    "dev:backend": "cd backend/backend && ./.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:frontend": "cd stocksense && npm run dev",
+    "build:frontend": "cd stocksense && npm run build",
+    "migrate:backend": "cd backend/backend && ./.venv/bin/alembic upgrade head",
+    "seed:backend": "cd backend/backend && ./.venv/bin/python -c 'from app.db.session import SessionLocal; from app.seed.demo_data import seed_demo_data; db = SessionLocal(); print(seed_demo_data(db)); db.close()'"
+  }
+}
