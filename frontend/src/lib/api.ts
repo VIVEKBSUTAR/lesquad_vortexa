@@ -18,9 +18,13 @@ function getEffectiveBaseUrl(): string {
     if (saved && saved.trim()) {
       return saved.trim().replace(/\/+$/, '');
     }
+    if (window.location.protocol === 'https:' && !process.env.NEXT_PUBLIC_API_BASE_URL) {
+      return 'https://soulful-usefully-wendie.ngrok-free.dev/api/v1';
+    }
   }
   return (
-    process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    'https://soulful-usefully-wendie.ngrok-free.dev/api/v1'
   ).replace(/\/+$/, '');
 }
 
@@ -243,6 +247,13 @@ class StockSenseApiClient {
     this.baseUrl = getEffectiveBaseUrl();
   }
 
+  private getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
+    return {
+      'ngrok-skip-browser-warning': 'true',
+      ...customHeaders,
+    };
+  }
+
   public getBaseUrl(): string {
     return this.baseUrl;
   }
@@ -260,7 +271,8 @@ class StockSenseApiClient {
       localStorage.removeItem('stocksense_api_base_url');
     }
     this.baseUrl = (
-      process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      'https://soulful-usefully-wendie.ngrok-free.dev/api/v1'
     ).replace(/\/+$/, '');
   }
 
@@ -288,7 +300,8 @@ class StockSenseApiClient {
   async getHealth(): Promise<HealthResponse> {
     try {
       const res = await fetch(`${this.baseUrl}/health`, {
-        signal: AbortSignal.timeout(2000),
+        headers: this.getHeaders(),
+        signal: AbortSignal.timeout(6000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -318,7 +331,8 @@ class StockSenseApiClient {
 
     try {
       const res = await fetch(`${this.baseUrl}/products`, {
-        signal: AbortSignal.timeout(3000),
+        headers: this.getHeaders(),
+        signal: AbortSignal.timeout(8000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -435,7 +449,7 @@ class StockSenseApiClient {
 
       const res = await fetch(`${this.baseUrl}/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(backendPayload),
       });
 
@@ -495,7 +509,7 @@ class StockSenseApiClient {
 
       const res = await fetch(`${this.baseUrl}/products/${numericId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(backendPayload),
       });
 
@@ -523,7 +537,8 @@ class StockSenseApiClient {
 
     try {
       const res = await fetch(`${this.baseUrl}/products/${numericId}/demand`, {
-        signal: AbortSignal.timeout(2500),
+        headers: this.getHeaders(),
+        signal: AbortSignal.timeout(6000),
       });
       if (res.ok) {
         const data = await res.json();
@@ -577,6 +592,7 @@ class StockSenseApiClient {
         `${this.baseUrl}/imports/preview?file_type=${encodeURIComponent(normalizedType)}`,
         {
           method: 'POST',
+          headers: this.getHeaders(),
           body: formData,
         }
       );
@@ -687,6 +703,7 @@ class StockSenseApiClient {
       const url = `${this.baseUrl}/imports/${importId}/confirm${clearExisting ? '?clear_existing=true' : ''}`;
       const res = await fetch(url, {
         method: 'POST',
+        headers: this.getHeaders(),
       });
       if (res.ok) {
         const data = await res.json();
@@ -729,6 +746,7 @@ class StockSenseApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/imports/reset`, {
         method: 'POST',
+        headers: this.getHeaders(),
       });
       if (res.ok) {
         this.skuToIdMap.clear();
@@ -746,7 +764,7 @@ class StockSenseApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/products/${numericId}/anomalies/detect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ threshold_multiplier: 3.0, min_history_records: 2 }),
       });
       if (res.ok) {
@@ -813,7 +831,7 @@ class StockSenseApiClient {
       if (!isNaN(numericId)) {
         const res = await fetch(`${this.baseUrl}/anomalies/${numericId}/review`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             classification:
               review.confirmed_type === 'promo'
@@ -849,7 +867,7 @@ class StockSenseApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/products/${numericId}/recommendations/calculate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({}),
       });
 
@@ -963,7 +981,7 @@ class StockSenseApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/products/${numericId}/scenarios`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           scenario_name: payload.scenario_name,
           demand_surge_pct: payload.demand_surge_pct,
@@ -1100,7 +1118,7 @@ class StockSenseApiClient {
     try {
       const res = await fetch(`${this.baseUrl}/products/${numericId}/forecast-benchmark`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ test_size: 0.2, window_size: 7 }),
       });
 

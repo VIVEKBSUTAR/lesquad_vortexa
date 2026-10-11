@@ -173,28 +173,30 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right Controls: Stock Reliability & Action */}
       <div className="flex items-center gap-3">
-        {/* Stock Reliability Selector */}
-        <div className="hidden sm:flex items-center gap-1.5 bg-stone/70 border border-border px-2.5 py-1 rounded-xl text-xs">
-          <span className="text-[11px] uppercase text-slate-600 font-bold hidden md:inline">
-            Stock Protection:
-          </span>
-          <div className="flex items-center gap-1">
-            {serviceLevelOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => onSelectServiceLevel(opt.value)}
-                className={`px-2 py-0.5 rounded text-xs transition-all cursor-pointer font-medium ${
-                  Math.abs(serviceLevel - opt.value) < 0.005
-                    ? 'bg-slate-900 text-white font-bold shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title={`Target Reliability: ${(opt.value * 100).toFixed(0)}%`}
-              >
-                {opt.label}
-              </button>
-            ))}
+        {/* Stock Reliability Selector - Hidden on Landing Page (Tour), available in Dashboard/Overview */}
+        {!isTour && (
+          <div className="hidden sm:flex items-center gap-1.5 bg-stone/70 border border-border px-2.5 py-1 rounded-xl text-xs">
+            <span className="text-[11px] uppercase text-slate-600 font-bold hidden md:inline">
+              Stock Protection:
+            </span>
+            <div className="flex items-center gap-1">
+              {serviceLevelOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => onSelectServiceLevel(opt.value)}
+                  className={`px-2 py-0.5 rounded text-xs transition-all cursor-pointer font-medium ${
+                    Math.abs(serviceLevel - opt.value) < 0.005
+                      ? 'bg-slate-900 text-white font-bold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title={`Target Reliability: ${(opt.value * 100).toFixed(0)}%`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Primary CTA: In Tour mode -> Launch Dashboard; In Dashboard mode -> Import Data */}
         {isTour ? (
